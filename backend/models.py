@@ -33,6 +33,15 @@ class User(Base):
     alerts = relationship("Alert", back_populates="user", cascade="all, delete")
     prediction_history = relationship("PredictionHistory", back_populates="user", cascade="all, delete")
 
+class UserApiKeys(Base):
+    __tablename__ = "user_api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    groq_key = Column(Text, nullable=True)      # Fernet-encrypted
+    tavily_key = Column(Text, nullable=True)    # Fernet-encrypted
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 class Watchlist(Base):
     __tablename__ = "watchlist"
 

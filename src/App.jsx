@@ -1,4 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { keysAPI } from "./services/api";
+import ApiKeys from "./pages/ApiKeys";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
@@ -35,6 +38,29 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+// After login: send the user to /api-keys until they've saved a Groq key or skipped.
+function KeysGate() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const [keys, setKeys] = useState(undefined); // undefined = still loading
+
+  const refresh = () =>
+    keysAPI.get().then((r) => setKeys(r.data)).catch(() => setKeys(null));
+
+  useEffect(() => { refresh(); }, []);
+
+  if (keys === undefined) return null;
+
+  let skipped = false;
+  try { skipped = localStorage.getItem(`keys_skipped_${user?.id}`) === "1"; } catch {}
+
+  const needsSetup = keys && !keys.groq.saved && !skipped;
+  if (needsSetup && location.pathname !== "/api-keys") {
+    return <Navigate to="/api-keys" replace />;
+  }
+  return <Outlet context={{ keys, refresh }} />;
+}
+
 function AppLayout({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: "transparent" }}>
@@ -53,12 +79,15 @@ function AppRoutes() {
     <Routes>
       <Route path="/login"    element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-      <Route path="/watchlist" element={<ProtectedRoute><AppLayout><Watchlist /></AppLayout></ProtectedRoute>} />
-      <Route path="/predictions" element={<ProtectedRoute><AppLayout><Predictions /></AppLayout></ProtectedRoute>} />
-      <Route path="/screener" element={<ProtectedRoute><AppLayout><Screener /></AppLayout></ProtectedRoute>} />
-      <Route path="/news" element={<ProtectedRoute><AppLayout><NewsFeed /></AppLayout></ProtectedRoute>} />
-      <Route path="/stock/:market/:symbol" element={<ProtectedRoute><AppLayout><StockDetail /></AppLayout></ProtectedRoute>} />
+      <Route element={<ProtectedRoute><KeysGate /></ProtectedRoute>}>
+        <Route path="/api-keys" element={<ApiKeys />} />
+        <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
+        <Route path="/watchlist" element={<AppLayout><Watchlist /></AppLayout>} />
+        <Route path="/predictions" element={<AppLayout><Predictions /></AppLayout>} />
+        <Route path="/screener" element={<AppLayout><Screener /></AppLayout>} />
+        <Route path="/news" element={<AppLayout><NewsFeed /></AppLayout>} />
+        <Route path="/stock/:market/:symbol" element={<AppLayout><StockDetail /></AppLayout>} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

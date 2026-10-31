@@ -61,6 +61,12 @@ export const alertsAPI = {
   get: () => api.get("/alerts/"),
   create: (data) => api.post("/alerts/", data),
   delete: (id) => api.delete(`/alerts/${id}`),
+  check: () => api.get("/alerts/check"),
+};
+
+export const keysAPI = {
+  get: () => api.get("/keys/"),
+  save: (data) => api.put("/keys/", data),
 };
 
 export default api;

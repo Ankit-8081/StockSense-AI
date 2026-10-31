@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Filter, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { stocksAPI, predictionAPI } from "../services/api";
+import { stocksAPI } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 
@@ -8,11 +8,14 @@ const NSE_STOCKS = [
   "RELIANCE","TCS","INFY","HDFCBANK","ICICIBANK","WIPRO","SBIN","BHARTIARTL",
   "HINDUNILVR","ITC","AXISBANK","MARUTI","TATAMOTORS","HCLTECH","LT",
   "BAJFINANCE","ASIANPAINT","TITAN","SUNPHARMA","DRREDDY",
-];
+].map((symbol) => ({ symbol, market: "NSE" }));
+
 const US_STOCKS = [
-  "AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","JPM",
-  "V","UNH","JNJ","PG","HD","MA","BAC",
-];
+  ["AAPL","NASDAQ"], ["MSFT","NASDAQ"], ["GOOGL","NASDAQ"], ["AMZN","NASDAQ"],
+  ["NVDA","NASDAQ"], ["META","NASDAQ"], ["TSLA","NASDAQ"], ["JPM","NYSE"],
+  ["V","NYSE"], ["UNH","NYSE"], ["JNJ","NYSE"], ["PG","NYSE"],
+  ["HD","NYSE"], ["MA","NYSE"], ["BAC","NYSE"],
+].map(([symbol, market]) => ({ symbol, market }));
 
 export default function Screener() {
   const navigate = useNavigate();
@@ -21,35 +24,28 @@ export default function Screener() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
 
   const runScreener = async () => {
     setLoading(true);
     setResults([]);
-    const symbols = market === "NSE" ? NSE_STOCKS : US_STOCKS;
+    const stocks = market === "NSE" ? NSE_STOCKS : US_STOCKS;
     const currency = market === "NSE" ? "INR" : "USD";
-    const actualMarket = market === "NSE" ? "NSE" : "NYSE";
 
     const settled = await Promise.allSettled(
-      symbols.map((s) =>
-        stocksAPI.quote(s, actualMarket).then((r) => ({ ...r.data, currency }))
+      stocks.map(({ symbol, market: m }) =>
+        stocksAPI.quote(symbol, m).then((r) => ({ ...r.data, market: m, currency }))
       )
     );
-    const quotes = settled
-      .filter((r) => r.status === "fulfilled")
-      .map((r) => r.value);
-    setResults(quotes);
+    setResults(settled.filter((r) => r.status === "fulfilled").map((r) => r.value));
     setLoading(false);
   };
 
   const handleSearch = (q) => {
     setSearchQuery(q);
     if (q.length < 2) { setSearchResults([]); return; }
-    setSearching(true);
     stocksAPI.search(q)
       .then((r) => setSearchResults(r.data || []))
-      .catch(() => setSearchResults([]))
-      .finally(() => setSearching(false));
+      .catch(() => setSearchResults([]));
   };
 
   const dirIcon = (pct) => {
@@ -146,7 +142,7 @@ export default function Screener() {
               </thead>
               <tbody>
                 {results.map((q) => (
-                  <tr key={q.symbol}
+                  <tr key={`${q.symbol}-${q.market}`}
                     onClick={() => navigate(`/stock/${q.market}/${q.symbol}`)}
                     className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50
                       dark:hover:bg-gray-800 cursor-pointer transition-colors">
@@ -155,11 +151,13 @@ export default function Screener() {
                     <td className="px-3 py-3 font-semibold text-gray-900 dark:text-white">
                       {q.currency === "INR" ? "₹" : "$"}{q.price?.toLocaleString()}
                     </td>
-                    <td className={clsx("px-3 py-3 font-semibold flex items-center gap-1",
+                    <td className={clsx("px-3 py-3 font-semibold",
                       q.change_pct > 0 ? "text-emerald-600 dark:text-emerald-400"
                         : q.change_pct < 0 ? "text-red-500 dark:text-red-400" : "text-gray-400")}>
-                      {dirIcon(q.change_pct)}
-                      {q.change_pct > 0 ? "+" : ""}{q.change_pct?.toFixed(2)}%
+                      <span className="flex items-center gap-1">
+                        {dirIcon(q.change_pct)}
+                        {q.change_pct > 0 ? "+" : ""}{q.change_pct?.toFixed(2)}%
+                      </span>
                     </td>
                     <td className="px-3 py-3 text-gray-500 dark:text-gray-400">
                       {(q.volume / 1e6)?.toFixed(2)}M

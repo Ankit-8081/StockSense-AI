@@ -1,13 +1,6 @@
 from langchain_groq import ChatGroq
 from langchain.schema import SystemMessage, HumanMessage
 import json
-import os
-
-llm = ChatGroq(
-    api_key=os.getenv("GROQ_API_KEY"),
-    model_name="llama3-70b-8192",
-    temperature=0.1
-)
 
 SYSTEM_PROMPT = """You are a financial sentiment analysis expert.
 Given a list of news articles about a stock, analyze the overall sentiment and return a JSON object with:
@@ -18,7 +11,7 @@ Given a list of news articles about a stock, analyze the overall sentiment and r
 - summary: 2-sentence summary of what the news means for the stock
 Respond ONLY with the JSON object, no markdown, no extra text."""
 
-def analyze_sentiment(symbol: str, articles: list) -> dict:
+def analyze_sentiment(symbol: str, articles: list, groq_key: str = None) -> dict:
     if not articles:
         return {
             "sentiment_score": 0.0,
@@ -29,7 +22,7 @@ def analyze_sentiment(symbol: str, articles: list) -> dict:
         }
 
     news_text = "\n\n".join([
-        f"Title: {a.get('title','')}\nContent: {a.get('content','')[:400]}"
+        f"Title: {a.get('title','')}\nContent: {(a.get('content') or '')[:400]}"
         for a in articles[:6]
     ])
 
@@ -39,6 +32,7 @@ def analyze_sentiment(symbol: str, articles: list) -> dict:
     ]
 
     try:
+        llm = ChatGroq(api_key=groq_key, model_name="llama-3.3-70b-versatile", temperature=0.1)
         response = llm.invoke(messages)
         raw = response.content.strip()
         result = json.loads(raw)

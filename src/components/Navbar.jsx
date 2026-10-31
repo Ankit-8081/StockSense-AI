@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Star, Newspaper, BarChart2, TrendingUp, LogOut, Menu, X, Search, Bell } from "lucide-react";
+import { LayoutDashboard, Star, Newspaper, BarChart2, TrendingUp, LogOut, Menu, X, Search, Bell, KeyRound } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { alertsAPI } from "../services/api";
 
 const NAV = [
   { path: "/",            icon: LayoutDashboard, label: "Dashboard"   },
@@ -20,12 +21,40 @@ const C = {
   card:    "#131929",
 };
 
+const ALERT_POLL_MS = 60000;
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate  = useNavigate();
   const [open, setOpen]   = useState(false);
   const [query, setQuery] = useState("");
+  const [fired, setFired] = useState([]);
+  const [showAlerts, setShowAlerts] = useState(false);
+  const bellRef = useRef(null);
+
+  // Poll the backend for triggered price alerts
+  useEffect(() => {
+    let cancelled = false;
+    const check = () =>
+      alertsAPI.check()
+        .then((r) => {
+          if (!cancelled && r.data?.length) setFired((prev) => [...r.data, ...prev]);
+        })
+        .catch(() => {});
+    check();
+    const id = setInterval(check, ALERT_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // Close the dropdown on outside click
+  useEffect(() => {
+    const onClick = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) setShowAlerts(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -101,14 +130,66 @@ export default function Navbar() {
 
         {/* Right actions */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto" }}>
-          <button style={{
+          <Link to="/api-keys" title="API keys" style={{
             width: 34, height: 34, borderRadius: "8px",
             border: `1px solid ${C.border}`, background: "#131929",
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            color: C.muted,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: C.muted, textDecoration: "none",
           }}>
-            <Bell size={15} />
-          </button>
+            <KeyRound size={15} />
+          </Link>
+
+          <div ref={bellRef} style={{ position: "relative" }}>
+            <button onClick={() => setShowAlerts(!showAlerts)} style={{
+              width: 34, height: 34, borderRadius: "8px",
+              border: `1px solid ${fired.length ? "rgba(245,158,11,0.5)" : C.border}`, background: "#131929",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              color: fired.length ? "#f59e0b" : C.muted, position: "relative",
+            }}>
+              <Bell size={15} />
+              {fired.length > 0 && (
+                <span style={{
+                  position: "absolute", top: -5, right: -5, minWidth: 16, height: 16,
+                  borderRadius: 8, background: "#ef4444", color: "#fff",
+                  fontSize: "10px", fontWeight: 700, display: "flex",
+                  alignItems: "center", justifyContent: "center", padding: "0 4px",
+                }}>{fired.length}</span>
+              )}
+            </button>
+
+            {showAlerts && (
+              <div style={{
+                position: "absolute", right: 0, top: "42px", width: 280,
+                background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.5)", padding: "10px", zIndex: 60,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px 8px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: C.text }}>Price alerts</span>
+                  {fired.length > 0 && (
+                    <button onClick={() => setFired([])} style={{
+                      background: "none", border: "none", color: C.teal, fontSize: "12px", cursor: "pointer",
+                    }}>Clear</button>
+                  )}
+                </div>
+                {fired.length === 0 ? (
+                  <p style={{ fontSize: "12px", color: C.muted, padding: "8px 4px", margin: 0 }}>
+                    No triggered alerts
+                  </p>
+                ) : fired.map((a) => (
+                  <div key={a.id} style={{
+                    padding: "8px 10px", borderRadius: "8px", marginBottom: "4px",
+                    background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
+                    fontSize: "12px", color: C.text,
+                  }}>
+                    <strong>{a.symbol}</strong> is {a.condition} {a.currency === "INR" ? "₹" : "$"}{a.target_price}
+                    <div style={{ color: C.muted, marginTop: 2 }}>
+                      Now {a.currency === "INR" ? "₹" : "$"}{a.price?.toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {user && (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="hide-mobile">
