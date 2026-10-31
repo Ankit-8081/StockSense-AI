@@ -195,5 +195,4 @@ StockSense-AI/
 ---
 
 ## 📄 License
-
-MIT License
+Licensed under the [PPL License](./License).
