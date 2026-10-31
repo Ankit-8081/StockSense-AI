@@ -1,193 +1,138 @@
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, Activity } from "lucide-react";
-import clsx from "clsx";
+import { Link } from "react-router-dom";
+import { Skel, symbolOf } from "./ui";
 
-const DIRECTION_CONFIG = {
-  UP: {
-    icon: TrendingUp,
-    label: "Bullish",
-    bg: "bg-emerald-50 dark:bg-emerald-950",
-    border: "border-emerald-200 dark:border-emerald-800",
-    badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-    icon_color: "text-emerald-600 dark:text-emerald-400",
-    bar: "bg-emerald-500",
-  },
-  DOWN: {
-    icon: TrendingDown,
-    label: "Bearish",
-    bg: "bg-red-50 dark:bg-red-950",
-    border: "border-red-200 dark:border-red-800",
-    badge: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    icon_color: "text-red-600 dark:text-red-400",
-    bar: "bg-red-500",
-  },
-  NEUTRAL: {
-    icon: Minus,
-    label: "Neutral",
-    bg: "bg-gray-50 dark:bg-gray-900",
-    border: "border-gray-200 dark:border-gray-700",
-    badge: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-    icon_color: "text-gray-500",
-    bar: "bg-gray-400",
-  },
+const DIRECTION = {
+  UP:      { word: "Bullish", glyph: "▲", color: "var(--up)" },
+  DOWN:    { word: "Bearish", glyph: "▼", color: "var(--down)" },
+  NEUTRAL: { word: "Neutral", glyph: "–", color: "var(--mute)" },
 };
 
-function SentimentDot({ label, score }) {
-  const color = score > 0.2 ? "bg-emerald-500" : score < -0.2 ? "bg-red-500" : "bg-yellow-400";
+function ScoreBar({ label, score }) {
+  const v = Math.max(-1, Math.min(1, Number(score) || 0));
+  const w = Math.abs(v) * 50;
+  const color = v > 0.05 ? "var(--up)" : v < -0.05 ? "var(--down)" : "var(--mute)";
   return (
-    <div className="flex items-center gap-2">
-      <span className={clsx("w-2 h-2 rounded-full", color)} />
-      <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
-      <span className="text-xs font-medium text-gray-700 dark:text-gray-200 ml-auto">
-        {score > 0 ? "+" : ""}{(score * 100).toFixed(0)}
-      </span>
+    <div className="dv">
+      <span>{label}</span>
+      <div className="dv-track" role="img" aria-label={`${label}: ${Math.round(v * 100)} on a scale of minus 100 to 100`}>
+        <div className="dv-fill" style={{ background: color, width: `${w}%`, left: v >= 0 ? "50%" : `${50 - w}%` }} />
+      </div>
+      <span style={{ textAlign: "right", fontWeight: 600 }}>{v > 0 ? "+" : ""}{Math.round(v * 100)}</span>
     </div>
   );
 }
 
-function SignalRow({ label, value }) {
-  if (value === undefined || value === null) return null;
-  return (
-    <div className="flex justify-between text-xs py-1 border-b border-gray-100 dark:border-gray-800 last:border-0">
-      <span className="text-gray-500 dark:text-gray-400">{label}</span>
-      <span className="font-mono font-medium text-gray-800 dark:text-gray-200">{value}</span>
-    </div>
-  );
-}
+const Section = ({ title, children }) => (
+  <div style={{ padding: "16px", borderTop: "1px solid var(--rule-soft)" }}>
+    <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>{title}</h3>
+    {children}
+  </div>
+);
 
-export default function PredictionCard({ data, loading }) {
+const SIGNALS = [
+  ["RSI (14)", "rsi"], ["MACD", "macd"], ["Bollinger position", "bb_position"],
+  ["SMA 20", "sma20"], ["SMA 50", "sma50"], ["VWAP", "vwap"], ["Volume vs average", "volume_ratio"],
+];
+
+export default function PredictionCard({ data, loading, error }) {
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 animate-pulse space-y-4">
-        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
-        <div className="h-16 bg-gray-100 dark:bg-gray-800 rounded-xl" />
-        <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-full" />
-        <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-3/4" />
+      <div className="panel panel-body" style={{ display: "grid", gap: 14 }} aria-busy="true" aria-label="Analyzing">
+        <Skel w="40%" h={14} /><Skel w="60%" h={38} /><Skel h={10} /><Skel h={80} /><Skel w="85%" />
+      </div>
+    );
+  }
+
+  if (error) {
+    const missingKey = /api key/i.test(error);
+    return (
+      <div className="notice notice-error" role="alert">
+        <strong>Prediction failed.</strong> {error}
+        {missingKey && <> <Link className="link" to="/api-keys">Add your key</Link></>}
       </div>
     );
   }
 
   if (!data) return null;
 
-  const cfg = DIRECTION_CONFIG[data.direction] || DIRECTION_CONFIG.NEUTRAL;
-  const Icon = cfg.icon;
-  const confidencePct = Math.round(data.confidence * 100);
+  const cfg = DIRECTION[data.direction] || DIRECTION.NEUTRAL;
+  const confidence = Math.round((data.confidence || 0) * 100);
+  const lit = Math.round(confidence / 10);
   const signals = data.technical?.signals || {};
+  const tr = data.target_range || {};
+  const fmtMove = (v) => (v < 0 ? `${v}` : data.direction === "DOWN" ? `−${v}` : `+${v}`);
 
   return (
-    <div className={clsx("rounded-2xl border p-6 space-y-5 transition-all", cfg.bg, cfg.border)}>
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            {data.prediction_type === "intraday" ? "Intraday Prediction" : "Delivery / Swing"}
-          </p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-            {data.symbol}
-            <span className="text-sm font-normal text-gray-400 ml-2">{data.market}</span>
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">
-            {data.currency === "INR" ? "₹" : "$"}{data.current_price?.toLocaleString()}
-          </p>
+    <article className="panel" aria-label={`${data.symbol} prediction`}>
+      <div style={{ padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+          <span className="muted">
+            {data.prediction_type === "intraday" ? "Intraday signal, today" : "Swing signal, 3–10 days"}
+          </span>
+          <span style={{ fontWeight: 600 }}>
+            {data.symbol} <span className="tag">{data.market}</span>
+          </span>
         </div>
-        <div className={clsx("flex flex-col items-center gap-1 rounded-xl px-4 py-3", cfg.badge)}>
-          <Icon className={clsx("w-7 h-7", cfg.icon_color)} strokeWidth={2.5} />
-          <span className="text-sm font-bold">{cfg.label}</span>
-        </div>
-      </div>
 
-      {/* Confidence bar */}
-      <div>
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
-          <span>Confidence</span>
-          <span className="font-semibold text-gray-800 dark:text-gray-200">{confidencePct}%</span>
-        </div>
-        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div className={clsx("h-2 rounded-full transition-all duration-700", cfg.bar)}
-            style={{ width: `${confidencePct}%` }} />
-        </div>
-      </div>
-
-      {/* Target range */}
-      {data.target_range && (
-        <div className="flex gap-3">
-          <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl p-3 text-center">
-            <p className="text-xs text-gray-400 mb-0.5">Expected range</p>
-            <p className="font-semibold text-sm text-gray-900 dark:text-white">
-              +{data.target_range.low}% – +{data.target_range.high}%
-            </p>
-          </div>
-          <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl p-3 text-center">
-            <p className="text-xs text-gray-400 mb-0.5">News coverage</p>
-            <p className="font-semibold text-sm text-gray-900 dark:text-white">
-              {data.news_count} articles
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Scores */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 space-y-2">
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-          Signal breakdown
+        <p className="signal-word" style={{ color: cfg.color, margin: "12px 0 14px" }}>
+          <span aria-hidden="true" style={{ fontSize: "0.6em", marginRight: 8 }}>{cfg.glyph}</span>{cfg.word}
         </p>
-        <SentimentDot label="News sentiment" score={data.sentiment?.score ?? 0} />
-        <SentimentDot label="Technical score" score={data.technical?.score ?? 0} />
-        <SentimentDot label="Combined score" score={data.combined_score ?? 0} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13 }}>
+          <span className="muted">Confidence</span>
+          <strong>{confidence}%</strong>
+        </div>
+        <div className="ticks" style={{ "--c": cfg.color }} role="img" aria-label={`Confidence ${confidence} percent`}>
+          {Array.from({ length: 10 }, (_, i) => <i key={i} className={i < lit ? "on" : ""} />)}
+        </div>
+
+        <dl className="kv" style={{ marginTop: 16 }}>
+          <dt>Price when analyzed</dt>
+          <dd>{symbolOf(data.currency)}{data.current_price?.toLocaleString()}</dd>
+          {tr.low !== undefined && tr.high !== undefined && (<>
+            <dt>Expected move</dt>
+            <dd>{fmtMove(tr.low)}% to {fmtMove(tr.high)}%</dd>
+          </>)}
+          <dt>News articles used</dt>
+          <dd>{data.news_count}</dd>
+        </dl>
       </div>
 
-      {/* Technical signals */}
-      {Object.keys(signals).length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-            Technical signals
-          </p>
-          <SignalRow label="RSI (14)" value={signals.rsi} />
-          <SignalRow label="MACD" value={signals.macd} />
-          <SignalRow label="BB Position" value={signals.bb_position} />
-          <SignalRow label="SMA 20" value={signals.sma20} />
-          <SignalRow label="SMA 50" value={signals.sma50} />
-          <SignalRow label="VWAP" value={signals.vwap} />
-          <SignalRow label="Volume ratio" value={signals.volume_ratio} />
-        </div>
-      )}
+      <Section title="What drives the signal">
+        <ScoreBar label="News sentiment" score={data.sentiment?.score} />
+        <ScoreBar label="Technicals" score={data.technical?.score} />
+        <ScoreBar label="Combined" score={data.combined_score} />
+      </Section>
 
-      {/* AI reasoning */}
-      <div>
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-          AI analysis
-        </p>
-        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-          {data.reasoning}
-        </p>
-      </div>
-
-      {/* Key risks */}
-      {data.key_risks?.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {data.key_risks.map((risk, i) => (
-            <span key={i} className="flex items-center gap-1 text-xs bg-yellow-50 dark:bg-yellow-950
-              text-yellow-700 dark:text-yellow-300 px-2.5 py-1 rounded-full border border-yellow-200 dark:border-yellow-800">
-              <AlertTriangle className="w-3 h-3" />
-              {risk}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Sentiment themes */}
-      {data.sentiment?.key_themes?.length > 0 && (
-        <div>
-          <p className="text-xs text-gray-400 mb-1.5">News themes</p>
-          <div className="flex flex-wrap gap-2">
-            {data.sentiment.key_themes.map((t, i) => (
-              <span key={i} className="text-xs bg-blue-50 dark:bg-blue-950 text-blue-700
-                dark:text-blue-300 px-2.5 py-1 rounded-full border border-blue-100 dark:border-blue-900">
-                {t}
-              </span>
+      {SIGNALS.some(([, k]) => signals[k] !== undefined && signals[k] !== null) && (
+        <Section title="Technical readings">
+          <dl className="kv">
+            {SIGNALS.map(([label, k]) => signals[k] !== undefined && signals[k] !== null && (
+              <div key={k} style={{ display: "contents" }}><dt>{label}</dt><dd>{signals[k]}</dd></div>
             ))}
-          </div>
-        </div>
+          </dl>
+        </Section>
       )}
-    </div>
+
+      {data.reasoning && (
+        <Section title="Why">
+          <p className="prose">{data.reasoning}</p>
+        </Section>
+      )}
+
+      {data.key_risks?.length > 0 && (
+        <Section title="Risks to watch">
+          <ul className="risk-list">{data.key_risks.map((r, i) => <li key={i}>{r}</li>)}</ul>
+        </Section>
+      )}
+
+      {data.sentiment?.key_themes?.length > 0 && (
+        <Section title="In the news">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {data.sentiment.key_themes.map((t, i) => <span key={i} className="pill">{t}</span>)}
+          </div>
+        </Section>
+      )}
+    </article>
   );
 }

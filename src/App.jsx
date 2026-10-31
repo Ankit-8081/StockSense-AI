@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "rea
 import { keysAPI } from "./services/api";
 import ApiKeys from "./pages/ApiKeys";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import Navbar from "./components/Navbar";
+import { Rail, Topbar } from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import StockDetail from "./pages/StockDetail";
 import Predictions from "./pages/Predictions";
@@ -18,18 +18,8 @@ function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: "100vh", display: "flex", alignItems: "center",
-        justifyContent: "center", background: "#0b0f1a",
-        flexDirection: "column", gap: "16px",
-      }}>
-        <div style={{
-          width: "44px", height: "44px",
-          border: "3px solid #1e293b", borderTopColor: "#14b8a6",
-          borderRadius: "50%", animation: "spin 0.8s linear infinite",
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: "#64748b", fontSize: "14px" }}>Loading StockSense AI...</p>
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        <p className="muted" role="status">Loading your account…</p>
       </div>
     );
   }
@@ -63,13 +53,12 @@ function KeysGate() {
 
 function AppLayout({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: "transparent" }}>
-      <Navbar />
-      <main style={{ paddingTop: "64px" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "28px 20px" }}>
-          {children}
-        </div>
-      </main>
+    <div className="shell">
+      <Rail />
+      <div className="main">
+        <Topbar />
+        <main className="page">{children}</main>
+      </div>
     </div>
   );
 }
