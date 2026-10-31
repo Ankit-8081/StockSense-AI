@@ -1,263 +1,142 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Star, Newspaper, BarChart2, TrendingUp, LogOut, Menu, X, Search, Bell, KeyRound } from "lucide-react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Star, Activity, Filter, Newspaper, Search, Bell, KeyRound, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { alertsAPI } from "../services/api";
+import { symbolOf } from "./ui";
 
 const NAV = [
-  { path: "/",            icon: LayoutDashboard, label: "Dashboard"   },
-  { path: "/watchlist",   icon: Star,             label: "Watchlist"   },
-  { path: "/predictions", icon: TrendingUp,        label: "Predictions" },
-  { path: "/screener",    icon: BarChart2,         label: "Screener"   },
-  { path: "/news",        icon: Newspaper,         label: "News"       },
+  { to: "/",            icon: LayoutDashboard, label: "Markets",     end: true },
+  { to: "/watchlist",   icon: Star,            label: "Watchlist" },
+  { to: "/predictions", icon: Activity,        label: "Predictions" },
+  { to: "/screener",    icon: Filter,          label: "Screener" },
+  { to: "/news",        icon: Newspaper,       label: "News" },
 ];
-
-const C = {
-  bg:      "#0f1420",
-  border:  "#1e2d40",
-  teal:    "#14b8a6",
-  text:    "#e2e8f0",
-  muted:   "#64748b",
-  card:    "#131929",
-};
 
 const ALERT_POLL_MS = 60000;
 
-export default function Navbar() {
+export function Rail() {
+  return (
+    <nav className="rail" aria-label="Main">
+      <Link to="/" className="rail-brand" aria-label="StockSense AI home">S</Link>
+      {NAV.map(({ to, icon: Icon, label, end }) => (
+        <NavLink key={to} to={to} end={end} className="rail-link">
+          <Icon size={20} strokeWidth={1.8} />
+          <span>{label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
+function useDismiss(ref, open, close) {
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) close(); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+}
+
+export function Topbar() {
   const { user, logout } = useAuth();
-  const location = useLocation();
-  const navigate  = useNavigate();
-  const [open, setOpen]   = useState(false);
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [fired, setFired] = useState([]);
-  const [showAlerts, setShowAlerts] = useState(false);
-  const bellRef = useRef(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const alertsRef = useRef(null);
+  const accountRef = useRef(null);
+
+  useDismiss(alertsRef, alertsOpen, () => setAlertsOpen(false));
+  useDismiss(accountRef, accountOpen, () => setAccountOpen(false));
 
   // Poll the backend for triggered price alerts
   useEffect(() => {
     let cancelled = false;
     const check = () =>
       alertsAPI.check()
-        .then((r) => {
-          if (!cancelled && r.data?.length) setFired((prev) => [...r.data, ...prev]);
-        })
+        .then((r) => { if (!cancelled && r.data?.length) setFired((prev) => [...r.data, ...prev]); })
         .catch(() => {});
     check();
     const id = setInterval(check, ALERT_POLL_MS);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // Close the dropdown on outside click
-  useEffect(() => {
-    const onClick = (e) => {
-      if (bellRef.current && !bellRef.current.contains(e.target)) setShowAlerts(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
-
-  const handleSearch = (e) => {
+  const submit = (e) => {
     e.preventDefault();
-    if (query.trim()) { navigate(`/screener?q=${encodeURIComponent(query.trim())}`); setQuery(""); }
+    const q = query.trim();
+    if (q) { navigate(`/screener?q=${encodeURIComponent(q)}`); setQuery(""); }
   };
 
   return (
-    <>
-      <nav style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
-        background: C.bg, borderBottom: `1px solid ${C.border}`,
-        height: "64px", display: "flex", alignItems: "center",
-        padding: "0 20px", gap: "16px",
-        boxShadow: "0 1px 20px rgba(0,0,0,0.4)",
-      }}>
-        {/* Logo */}
-        <Link to="/" style={{
-          display: "flex", alignItems: "center", gap: "10px",
-          textDecoration: "none", flexShrink: 0,
-        }}>
-          <div style={{
-            width: 34, height: 34,
-            background: "linear-gradient(135deg, #14b8a6, #6366f1)",
-            borderRadius: "9px", display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <TrendingUp size={18} color="#fff" strokeWidth={2.5} />
-          </div>
-          <span style={{ color: C.text, fontWeight: 700, fontSize: "16px", letterSpacing: "-0.3px" }}>
-            StockSense <span style={{ color: C.teal }}>AI</span>
-          </span>
-        </Link>
+    <header className="topbar">
+      <form className="search" onSubmit={submit} role="search">
+        <Search size={16} aria-hidden="true" />
+        <input
+          className="input" value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search stocks, e.g. TCS" aria-label="Search stocks"
+        />
+      </form>
+      <div className="topbar-spacer" />
 
-        {/* Nav links */}
-        <div style={{ display: "flex", gap: "2px", flex: 1 }} className="hide-mobile">
-          {NAV.map(({ path, icon: Icon, label }) => {
-            const active = location.pathname === path;
-            return (
-              <Link key={path} to={path} style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                padding: "7px 13px", borderRadius: "8px",
-                fontSize: "13px", fontWeight: active ? 600 : 400,
-                color: active ? C.teal : C.muted,
-                background: active ? "rgba(20,184,166,0.1)" : "transparent",
-                border: active ? "1px solid rgba(20,184,166,0.2)" : "1px solid transparent",
-                textDecoration: "none", transition: "all 0.15s",
-              }}
-              onMouseEnter={e => { if (!active) { e.currentTarget.style.color = C.text; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}}
-              onMouseLeave={e => { if (!active) { e.currentTarget.style.color = C.muted; e.currentTarget.style.background = "transparent"; }}}>
-                <Icon size={14} />
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Search */}
-        <form onSubmit={handleSearch} style={{ flex: 1, maxWidth: "260px", display: "flex" }} className="hide-mobile">
-          <div style={{ position: "relative", width: "100%" }}>
-            <Search style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted }} size={14} />
-            <input value={query} onChange={e => setQuery(e.target.value)}
-              placeholder="Search stocks…"
-              style={{
-                width: "100%", paddingLeft: "32px", paddingRight: "12px",
-                paddingTop: "8px", paddingBottom: "8px",
-                border: `1px solid ${C.border}`, borderRadius: "8px",
-                fontSize: "13px", background: "#131929", color: C.text, outline: "none",
-              }}
-              onFocus={e => e.target.style.borderColor = C.teal}
-              onBlur={e => e.target.style.borderColor = C.border}
-            />
-          </div>
-        </form>
-
-        {/* Right actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto" }}>
-          <Link to="/api-keys" title="API keys" style={{
-            width: 34, height: 34, borderRadius: "8px",
-            border: `1px solid ${C.border}`, background: "#131929",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: C.muted, textDecoration: "none",
-          }}>
-            <KeyRound size={15} />
-          </Link>
-
-          <div ref={bellRef} style={{ position: "relative" }}>
-            <button onClick={() => setShowAlerts(!showAlerts)} style={{
-              width: 34, height: 34, borderRadius: "8px",
-              border: `1px solid ${fired.length ? "rgba(245,158,11,0.5)" : C.border}`, background: "#131929",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              color: fired.length ? "#f59e0b" : C.muted, position: "relative",
-            }}>
-              <Bell size={15} />
+      <div ref={alertsRef} style={{ position: "relative" }}>
+        <button
+          className="icon-btn" onClick={() => setAlertsOpen((o) => !o)}
+          aria-label={fired.length ? `${fired.length} triggered price alerts` : "Price alerts"}
+          aria-expanded={alertsOpen}
+        >
+          <Bell size={17} />
+          {fired.length > 0 && <span className="badge-count">{fired.length}</span>}
+        </button>
+        {alertsOpen && (
+          <div className="menu" role="dialog" aria-label="Price alerts">
+            <div className="menu-head" style={{ display: "flex", justifyContent: "space-between" }}>
+              <strong>Price alerts</strong>
               {fired.length > 0 && (
-                <span style={{
-                  position: "absolute", top: -5, right: -5, minWidth: 16, height: 16,
-                  borderRadius: 8, background: "#ef4444", color: "#fff",
-                  fontSize: "10px", fontWeight: 700, display: "flex",
-                  alignItems: "center", justifyContent: "center", padding: "0 4px",
-                }}>{fired.length}</span>
+                <button className="link" onClick={() => setFired([])}>Clear</button>
               )}
-            </button>
-
-            {showAlerts && (
-              <div style={{
-                position: "absolute", right: 0, top: "42px", width: 280,
-                background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.5)", padding: "10px", zIndex: 60,
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px 8px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: C.text }}>Price alerts</span>
-                  {fired.length > 0 && (
-                    <button onClick={() => setFired([])} style={{
-                      background: "none", border: "none", color: C.teal, fontSize: "12px", cursor: "pointer",
-                    }}>Clear</button>
-                  )}
-                </div>
-                {fired.length === 0 ? (
-                  <p style={{ fontSize: "12px", color: C.muted, padding: "8px 4px", margin: 0 }}>
-                    No triggered alerts
-                  </p>
-                ) : fired.map((a) => (
-                  <div key={a.id} style={{
-                    padding: "8px 10px", borderRadius: "8px", marginBottom: "4px",
-                    background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
-                    fontSize: "12px", color: C.text,
-                  }}>
-                    <strong>{a.symbol}</strong> is {a.condition} {a.currency === "INR" ? "₹" : "$"}{a.target_price}
-                    <div style={{ color: C.muted, marginTop: 2 }}>
-                      Now {a.currency === "INR" ? "₹" : "$"}{a.price?.toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {user && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="hide-mobile">
-              <div style={{
-                width: 32, height: 32, borderRadius: "50%",
-                background: "linear-gradient(135deg, #14b8a6, #6366f1)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#fff", fontWeight: 700, fontSize: "12px",
-              }}>
-                {user.name?.[0]?.toUpperCase()}
-              </div>
-              <span style={{ fontSize: "13px", color: C.text, fontWeight: 500 }}>
-                {user.name?.split(" ")[0]}
-              </span>
             </div>
-          )}
-
-          <button onClick={logout} style={{
-            width: 34, height: 34, borderRadius: "8px",
-            border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)",
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#ef4444",
-          }}>
-            <LogOut size={15} />
-          </button>
-
-          <button onClick={() => setOpen(!open)} style={{
-            width: 34, height: 34, borderRadius: "8px",
-            border: `1px solid ${C.border}`, background: "#131929",
-            cursor: "pointer", alignItems: "center", justifyContent: "center",
-            color: C.muted, display: "none",
-          }} className="show-mobile">
-            {open ? <X size={17} /> : <Menu size={17} />}
-          </button>
-        </div>
-      </nav>
-
-      {open && (
-        <div style={{
-          position: "fixed", top: "64px", left: 0, right: 0, zIndex: 40,
-          background: C.bg, borderBottom: `1px solid ${C.border}`,
-          padding: "12px 16px",
-        }}>
-          {NAV.map(({ path, icon: Icon, label }) => {
-            const active = location.pathname === path;
-            return (
-              <Link key={path} to={path} onClick={() => setOpen(false)} style={{
-                display: "flex", alignItems: "center", gap: "10px",
-                padding: "11px 14px", borderRadius: "8px", marginBottom: "4px",
-                fontSize: "14px", fontWeight: active ? 600 : 400,
-                color: active ? C.teal : C.text,
-                background: active ? "rgba(20,184,166,0.1)" : "transparent",
-                textDecoration: "none",
-              }}>
-                <Icon size={16} />
-                {label}
+            {fired.length === 0 ? (
+              <p className="muted menu-head">No alerts have triggered. Set one from any stock page.</p>
+            ) : fired.map((a) => (
+              <Link key={a.id} className="menu-item" to={`/stock/NSE/${a.symbol}`} onClick={() => setAlertsOpen(false)}>
+                <span>
+                  <strong>{a.symbol}</strong> went {a.condition} {symbolOf(a.currency)}{a.target_price}
+                  <span className="sub">Now {symbolOf(a.currency)}{a.price?.toLocaleString()}</span>
+                </span>
               </Link>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .hide-mobile { display: none !important; }
-          .show-mobile { display: flex !important; }
-        }
-      `}</style>
-    </>
+      <div ref={accountRef} style={{ position: "relative" }}>
+        <button className="btn" onClick={() => setAccountOpen((o) => !o)} aria-expanded={accountOpen}>
+          {user?.name?.split(" ")[0] || "Account"}
+          <ChevronDown size={14} />
+        </button>
+        {accountOpen && (
+          <div className="menu" style={{ width: 230 }}>
+            <div className="menu-head">
+              <strong>{user?.name}</strong>
+              <span className="sub">{user?.email}</span>
+            </div>
+            <div className="menu-sep" />
+            <Link className="menu-item" to="/api-keys" onClick={() => setAccountOpen(false)}>
+              <KeyRound size={16} /> API keys
+            </Link>
+            <button className="menu-item" onClick={logout}>
+              <LogOut size={16} /> Sign out
+            </button>
+          </div>
+        )}
+      </div>
+    </header>
   );
 }

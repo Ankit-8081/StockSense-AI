@@ -1,8 +1,7 @@
-// NewsFeed.jsx
 import { useState, useEffect } from "react";
 import { newsAPI } from "../services/api";
 import NewsCard from "../components/NewsCard";
-import clsx from "clsx";
+import { Segmented, Empty, Skel } from "../components/ui";
 
 export default function NewsFeed() {
   const [market, setMarket] = useState("NSE");
@@ -18,47 +17,32 @@ export default function NewsFeed() {
   }, [market]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="stack">
+      <div className="page-head">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Market News</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Live news from Tavily</p>
+          <h1 className="page-title">News</h1>
+          <p className="page-sub">Latest headlines for the {market === "US" ? "US" : market} market.</p>
         </div>
-        <div className="flex gap-2">
-          {["NSE", "BSE", "US"].map((m) => (
-            <button key={m} onClick={() => setMarket(m)}
-              className={clsx("px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                market === m
-                  ? "bg-blue-600 text-white"
-                  : "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300")}>
-              {m}
-            </button>
-          ))}
-        </div>
+        <Segmented value={market} onChange={setMarket} options={["NSE", "BSE", "US"]} label="Market" />
       </div>
 
-      {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-xl border border-gray-200 dark:border-gray-700
-              bg-white dark:bg-gray-900 p-4 animate-pulse space-y-3">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full" />
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!loading && news.length === 0 && (
-        <p className="text-center text-gray-400 py-12">No news available right now.</p>
-      )}
-
-      {!loading && news.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {news.map((article, i) => <NewsCard key={i} article={article} />)}
-        </div>
-      )}
+      <section className="panel" style={{ maxWidth: 920 }}>
+        {loading ? (
+          <ul className="row-list" aria-busy="true" aria-label="Loading news">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <li key={i} style={{ padding: 16, display: "grid", gap: 8 }}>
+                <Skel w="22%" h={12} /><Skel w="80%" h={18} /><Skel w="60%" />
+              </li>
+            ))}
+          </ul>
+        ) : news.length === 0 ? (
+          <Empty title="No headlines right now">
+            News comes from Tavily. If this stays empty, check that your Tavily key is saved under API keys.
+          </Empty>
+        ) : (
+          <ul className="row-list">{news.map((a, i) => <li key={i}><NewsCard article={a} /></li>)}</ul>
+        )}
+      </section>
     </div>
   );
 }
