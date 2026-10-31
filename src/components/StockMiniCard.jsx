@@ -3,6 +3,16 @@ import { useNavigate } from "react-router-dom";
 
 const C = { bg: "#131929", border: "#1e2d40", teal: "#14b8a6", text: "#e2e8f0", muted: "#64748b" };
 
+// "Apple Inc." -> "A", "Meta Platforms, Inc." -> "MP"; falls back to the ticker
+function initials(name, symbol) {
+  const words = (name || "")
+    .replace(/[.,]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && !/^(inc|corp|corporation|co|company|ltd|limited|plc|holdings?|group|the)$/i.test(w));
+  if (!words.length || name === symbol) return symbol.slice(0, 2);
+  return words.slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+}
+
 export default function StockMiniCard({ symbol, market, name, price, change_pct, currency = "INR", onClick }) {
   const navigate  = useNavigate();
   const isUp      = change_pct > 0;
@@ -32,11 +42,11 @@ export default function StockMiniCard({ symbol, market, name, price, change_pct,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontWeight: 700, fontSize: "11px", color: C.teal, flexShrink: 0,
         }}>
-          {symbol.slice(0, 2)}
+          {initials(name, symbol)}
         </div>
         <div>
           <p style={{ fontWeight: 600, fontSize: "14px", color: C.text, margin: 0 }}>{symbol}</p>
-          <p style={{ fontSize: "11px", color: C.muted, margin: 0, maxWidth: "110px",
+          <p style={{ fontSize: "11px", color: C.muted, margin: 0, maxWidth: "170px",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {name || market}
           </p>
