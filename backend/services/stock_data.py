@@ -120,11 +120,11 @@ def _groww_indices(market: str) -> list:
 
 # ── Yahoo Finance v8 (US stocks) ─────────────────────────────────────────────
 
-def _yf_v8_quote(symbol: str, market: str) -> dict | None:
+def _yf_v8_quote(symbol: str, market: str, ticker: str = None, currency: str = "USD") -> dict | None:
     """Direct Yahoo Finance v8 API — bypasses yfinance package rate limits."""
-    currency = "USD"
+    ticker = (ticker or symbol).upper()
     try:
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol.upper()}?interval=1d&range=5d"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d"
         r = requests.get(url, headers=YF_HEADERS, timeout=12)
         if r.status_code != 200:
             # Try query2
@@ -144,7 +144,7 @@ def _yf_v8_quote(symbol: str, market: str) -> dict | None:
         change_pct = round((change / prev_close) * 100, 2) if prev_close else 0
         return {
             "symbol": symbol.upper(), "market": market.upper(),
-            "ticker": symbol.upper(), "name": meta.get("longName") or symbol.upper(),
+            "ticker": ticker, "name": meta.get("longName") or symbol.upper(),
             "price": round(price, 2), "prev_close": round(prev_close, 2),
             "change": change,         "change_pct": change_pct,
             "volume": int(meta.get("regularMarketVolume", 0) or 0),
@@ -226,6 +226,8 @@ def get_quote(symbol: str, market: str) -> dict:
     if market.upper() in ["NSE", "BSE"]:
         result = _groww_quote(symbol, market)
         if not result:
+            result = _yf_v8_quote(symbol, market, ticker=build_ticker(symbol, market), currency="INR")
+        if not result:
             result = {
                 "symbol": symbol.upper(), "market": market.upper(),
                 "ticker": f"{symbol}.NS",  "name": symbol.upper(),
@@ -244,7 +246,8 @@ def get_quote(symbol: str, market: str) -> dict:
                 "week_52_high": 0, "week_52_low": 0, "currency": "USD",
             }
 
-    _cache_set(key, result)
+    if result.get("price"):  # don't cache failed lookups
+        _cache_set(key, result)
     return result
 
 def get_history(symbol: str, market: str, period: str = "3mo", interval: str = "1d") -> list:
@@ -259,10 +262,13 @@ def get_history(symbol: str, market: str, period: str = "3mo", interval: str = "
         interval_min = interval_min_map.get(interval, 1440)
         days = days_map.get(period, 90)
         records = _groww_history(symbol, days, interval_min)
+        if not records:  # Groww is unofficial and often blocks/changes; fall back to Yahoo (.NS / .BO)
+            records = _yf_v8_history(build_ticker(symbol, market), period, interval)
     else:
         records = _yf_v8_history(symbol, period, interval)
 
-    _cache_set(key, records, ttl=300)
+    if records:  # don't cache failures, or one bad request blanks the chart for 5 minutes
+        _cache_set(key, records, ttl=300)
     return records
 
 def search_symbols(query: str) -> list:
