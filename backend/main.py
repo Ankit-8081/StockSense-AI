@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routers import auth, stocks, news, prediction, watchlist, alerts
+from routers import auth, stocks, news, prediction, watchlist, alerts, keys
+import models  # noqa: F401 — registers all tables (incl. user_api_keys) before create_all
 
 Base.metadata.create_all(bind=engine)
 
@@ -25,6 +26,7 @@ app.include_router(news.router,       prefix="/news",       tags=["News"])
 app.include_router(prediction.router, prefix="/predict",    tags=["Prediction"])
 app.include_router(watchlist.router,  prefix="/watchlist",  tags=["Watchlist"])
 app.include_router(alerts.router,     prefix="/alerts",     tags=["Alerts"])
+app.include_router(keys.router,       prefix="/keys",       tags=["API Keys"])
 
 @app.get("/")
 def root():

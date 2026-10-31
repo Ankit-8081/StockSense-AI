@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, HTTPException
 from sqlalchemy.orm import Session
 from agents.prediction_agent import predict
+from services.secrets import get_user_keys
 from models import PredictionHistory, Direction, PredictionType, Market
 from database import get_db
 from routers.auth import get_current_user
@@ -16,7 +17,10 @@ def get_prediction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = predict(symbol, market, type)
+    keys = get_user_keys(db, current_user.id)
+    if not keys["groq"]:
+        raise HTTPException(status_code=400, detail="Groq API key not set. Add it on the API Keys page.")
+    result = predict(symbol, market, type, groq_key=keys["groq"], tavily_key=keys["tavily"])
 
     # Save to history
     try:

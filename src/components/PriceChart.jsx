@@ -4,6 +4,7 @@ import {
 } from "recharts";
 import { useState, useEffect } from "react";
 import clsx from "clsx";
+import { stocksAPI } from "../services/api";
 
 const PERIODS = [
   { label: "1D",  period: "1d",  interval: "5m" },
@@ -31,7 +32,7 @@ function CustomTooltip({ active, payload, label, currency }) {
   );
 }
 
-export default function PriceChart({ symbol, market, currency = "INR", fetchHistory }) {
+export default function PriceChart({ symbol, market, currency = "INR", fetchHistory = stocksAPI.history }) {
   const [selected, setSelected] = useState(PERIODS[2]);
   const [candles, setCandles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,14 +50,14 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
     }
   };
 
-  useEffect(() => { load(PERIODS[2]); }, [symbol]);
+  useEffect(() => { load(PERIODS[2]); }, [symbol, market]);
 
   const isUp = candles.length > 1 && candles[candles.length - 1]?.close >= candles[0]?.close;
   const color = isUp ? "#10b981" : "#ef4444";
 
   const formatX = (val) => {
     if (!val) return "";
-    const d = new Date(val);
+    const d = new Date(val.replace(" ", "T"));
     if (selected.interval === "5m" || selected.interval === "15m")
       return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
     return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
@@ -92,9 +93,9 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="time" tickFormatter={formatX} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={65}
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e2d40" />
+            <XAxis dataKey="time" tickFormatter={formatX} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+            <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} axisLine={false} width={65}
               tickFormatter={(v) => `${currency === "INR" ? "₹" : "$"}${v.toLocaleString()}`} />
             <Tooltip content={<CustomTooltip currency={currency} />} />
             <Area type="monotone" dataKey="close" stroke={color} strokeWidth={2}
