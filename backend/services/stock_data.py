@@ -65,32 +65,33 @@ def _groww_quote(symbol: str, market: str = "NSE") -> dict | None:
     except Exception:
         return None
 
-def _groww_history(symbol: str, days: int = 90, interval_min: int = 1440) -> list:
+def _groww_intraday(symbol: str) -> list:
+    """Today's session from Groww's current chart endpoint (1-minute points).
+    Accepts [ts, close] (minimal) or [ts, o, h, l, c, v] rows; ts in seconds or ms."""
     try:
-        end_ms   = int(datetime.now().timestamp() * 1000)
-        start_ms = int((datetime.now() - timedelta(days=days)).timestamp() * 1000)
         url = (
-            f"https://groww.in/v1/api/charting_service/v2/chart/exchange/NSE"
-            f"/segment/CASH/{symbol.upper()}"
-            f"?startTimeInMs={start_ms}&endTimeInMs={end_ms}&intervalInMinutes={interval_min}"
+            f"https://groww.in/v1/api/charting_service/v2/chart/exchange/NSE/segment/CASH/"
+            f"{symbol.upper()}/daily?intervalInMinutes=1&minimal=true"
         )
-        r = requests.get(url, headers=GROWW_HEADERS, timeout=15)
+        r = requests.get(url, headers=GROWW_HEADERS, timeout=10)
         if r.status_code != 200:
             return []
-        candles = r.json().get("candles", [])
         records = []
-        for c in candles:
-            if len(c) < 5:
+        for c in r.json().get("candles", []):
+            if not isinstance(c, (list, tuple)) or len(c) < 2:
                 continue
-            ts = datetime.fromtimestamp(c[0] / 1000)
-            fmt = "%Y-%m-%d %H:%M" if interval_min < 1440 else "%Y-%m-%d"
+            ts = c[0] / 1000 if c[0] > 1e11 else c[0]
+            if len(c) >= 5:
+                o, h, l, cl = (float(x) for x in c[1:5])
+                vol = int(c[5]) if len(c) > 5 and c[5] else 0
+            else:
+                o = h = l = cl = float(c[1])
+                vol = 0
             records.append({
-                "time":   ts.strftime(fmt),
-                "open":   round(float(c[1]), 2),
-                "high":   round(float(c[2]), 2),
-                "low":    round(float(c[3]), 2),
-                "close":  round(float(c[4]), 2),
-                "volume": int(c[5]) if len(c) > 5 else 0,
+                "time":   datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M"),
+                "open":   round(o, 2), "high": round(h, 2),
+                "low":    round(l, 2), "close": round(cl, 2),
+                "volume": vol,
             })
         return records
     except Exception:
@@ -257,12 +258,8 @@ def get_history(symbol: str, market: str, period: str = "3mo", interval: str = "
         return cached
 
     if market.upper() in ["NSE", "BSE"]:
-        interval_min_map = {"5m": 5, "15m": 15, "30m": 30, "1h": 60, "1d": 1440}
-        days_map = {"1d": 1, "5d": 5, "1mo": 30, "3mo": 90, "6mo": 180, "1y": 365}
-        interval_min = interval_min_map.get(interval, 1440)
-        days = days_map.get(period, 90)
-        records = _groww_history(symbol, days, interval_min)
-        if not records:  # Groww is unofficial and often blocks/changes; fall back to Yahoo (.NS / .BO)
+        records = _groww_intraday(symbol) if period == "1d" else []
+        if not records:  # Groww's other ranges aren't wired up; Yahoo covers them (.NS / .BO)
             records = _yf_v8_history(build_ticker(symbol, market), period, interval)
     else:
         records = _yf_v8_history(symbol, period, interval)
@@ -338,10 +335,6 @@ def check_sources() -> dict:
     if cached:
         return cached
 
-    now = datetime.now()
-    start_ms = int((now - timedelta(days=5)).timestamp() * 1000)
-    end_ms = int(now.timestamp() * 1000)
-
     result = {
         "groww_prices": _probe(
             "https://groww.in/v1/api/stocks_data/v1/tr_live_prices/exchange/NSE/segment/CASH/RELIANCE/latest",
@@ -349,8 +342,8 @@ def check_sources() -> dict:
             lambda d: (float(d.get("ltp", 0) or 0) > 0, "no price in response" if not d.get("ltp") else "ok"),
         ),
         "groww_history": _probe(
-            f"https://groww.in/v1/api/charting_service/v2/chart/exchange/NSE/segment/CASH/RELIANCE"
-            f"?startTimeInMs={start_ms}&endTimeInMs={end_ms}&intervalInMinutes=1440",
+            "https://groww.in/v1/api/charting_service/v2/chart/exchange/NSE/segment/CASH/RELIANCE"
+            "/daily?intervalInMinutes=1&minimal=true",
             GROWW_HEADERS,
             lambda d: (bool(d.get("candles")), "no candles in response" if not d.get("candles") else "ok"),
         ),
