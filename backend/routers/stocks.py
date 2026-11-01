@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from services.stock_data import get_quote, get_history, search_symbols, get_market_movers
+from services.stock_data import get_quote, get_history, search_symbols, get_market_movers, check_sources
 
 router = APIRouter()
 
@@ -23,3 +23,9 @@ def search(q: str = Query(..., min_length=1)):
 @router.get("/movers")
 def movers(market: str = Query("NSE")):
     return get_market_movers(market)
+
+
+@router.get("/status")
+def status():
+    """Is each upstream price source (Groww, Yahoo) reachable and returning data?"""
+    return check_sources()
