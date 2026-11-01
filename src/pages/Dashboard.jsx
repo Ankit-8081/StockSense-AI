@@ -155,7 +155,7 @@ export default function Dashboard() {
           </div>
           {news.length === 0 ? (
             <Empty title="No headlines yet">
-              News comes from Tavily. If this stays empty, check that your Tavily key is saved.
+              Headlines come from Google News and Tavily. If this stays empty, the news sources may be unreachable.
             </Empty>
           ) : (
             <ul className="row-list">

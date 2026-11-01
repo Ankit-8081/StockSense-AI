@@ -18,9 +18,9 @@ def get_prediction(
     current_user: User = Depends(get_current_user)
 ):
     keys = get_user_keys(db, current_user.id)
-    if not keys["groq"]:
-        raise HTTPException(status_code=400, detail="Groq API key not set. Add it on the API Keys page.")
-    result = predict(symbol, market, type, groq_key=keys["groq"], tavily_key=keys["tavily"])
+    if not keys["groq"] and not keys["google"]:
+        raise HTTPException(status_code=400, detail="No AI API key set. Add a Groq or Google AI key on the API Keys page.")
+    result = predict(symbol, market, type, groq_key=keys["groq"], tavily_key=keys["tavily"], google_key=keys["google"])
 
     # Save to history
     try:

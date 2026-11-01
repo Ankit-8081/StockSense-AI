@@ -26,12 +26,14 @@ def decrypt(value: str):
 
 
 def get_user_keys(db, user_id: int) -> dict:
-    """Return {'groq': ..., 'tavily': ...}: the user's saved keys, else server .env keys."""
+    """Return {'groq': ..., 'tavily': ..., 'google': ...}: the user's saved keys, else server .env keys."""
     from models import UserApiKeys
     row = db.query(UserApiKeys).filter(UserApiKeys.user_id == user_id).first()
     groq = decrypt(row.groq_key) if row and row.groq_key else None
     tavily = decrypt(row.tavily_key) if row and row.tavily_key else None
+    google = decrypt(row.google_key) if row and row.google_key else None
     return {
         "groq": groq or os.getenv("GROQ_API_KEY"),
         "tavily": tavily or os.getenv("TAVILY_API_KEY"),
+        "google": google or os.getenv("GOOGLE_API_KEY"),
     }

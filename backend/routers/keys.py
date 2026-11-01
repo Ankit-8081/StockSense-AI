@@ -14,6 +14,7 @@ class KeysIn(BaseModel):
     # None = leave unchanged, "" = remove, anything else = save
     groq_key: Optional[str] = None
     tavily_key: Optional[str] = None
+    google_key: Optional[str] = None
 
 
 def _preview(stored: Optional[str]) -> dict:
@@ -29,6 +30,7 @@ def get_keys(db: Session = Depends(get_db), current_user: User = Depends(get_cur
     return {
         "groq": _preview(row.groq_key if row else None),
         "tavily": _preview(row.tavily_key if row else None),
+        "google": _preview(row.google_key if row else None),
     }
 
 
@@ -45,7 +47,10 @@ def save_keys(req: KeysIn, db: Session = Depends(get_db), current_user: User = D
     if req.tavily_key is not None:
         v = req.tavily_key.strip()
         row.tavily_key = encrypt(v) if v else None
+    if req.google_key is not None:
+        v = req.google_key.strip()
+        row.google_key = encrypt(v) if v else None
 
     db.commit()
     db.refresh(row)
-    return {"groq": _preview(row.groq_key), "tavily": _preview(row.tavily_key)}
+    return {"groq": _preview(row.groq_key), "tavily": _preview(row.tavily_key), "google": _preview(row.google_key)}

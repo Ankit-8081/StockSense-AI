@@ -42,7 +42,7 @@ export const stocksAPI = {
 };
 
 export const newsAPI = {
-  stockNews: (symbol, company = "") => api.get(`/news/${symbol}`, { params: { company } }),
+  stockNews: (symbol, company = "", market = "NSE") => api.get(`/news/${symbol}`, { params: { company, market } }),
   marketNews: (market = "NSE") => api.get(`/news/market/${market}`),
 };
 

@@ -1,6 +1,5 @@
-from langchain_groq import ChatGroq
 from langchain.schema import SystemMessage, HumanMessage
-import json
+from services.llm import ask_json
 
 SYSTEM_PROMPT = """You are a financial sentiment analysis expert.
 Given a list of news articles about a stock, analyze the overall sentiment and return a JSON object with:
@@ -11,7 +10,7 @@ Given a list of news articles about a stock, analyze the overall sentiment and r
 - summary: 2-sentence summary of what the news means for the stock
 Respond ONLY with the JSON object, no markdown, no extra text."""
 
-def analyze_sentiment(symbol: str, articles: list, groq_key: str = None) -> dict:
+def analyze_sentiment(symbol: str, articles: list, groq_key: str = None, google_key: str = None) -> dict:
     if not articles:
         return {
             "sentiment_score": 0.0,
@@ -23,7 +22,7 @@ def analyze_sentiment(symbol: str, articles: list, groq_key: str = None) -> dict
 
     news_text = "\n\n".join([
         f"Title: {a.get('title','')}\nContent: {(a.get('content') or '')[:400]}"
-        for a in articles[:6]
+        for a in articles[:10]
     ])
 
     messages = [
@@ -32,11 +31,7 @@ def analyze_sentiment(symbol: str, articles: list, groq_key: str = None) -> dict
     ]
 
     try:
-        llm = ChatGroq(api_key=groq_key, model_name="llama-3.3-70b-versatile", temperature=0.1)
-        response = llm.invoke(messages)
-        raw = response.content.strip()
-        result = json.loads(raw)
-        return result
+        return ask_json(messages, groq_key=groq_key, google_key=google_key, temperature=0.1)
     except Exception as e:
         return {
             "sentiment_score": 0.0,
