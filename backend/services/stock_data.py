@@ -316,3 +316,54 @@ def get_market_movers(market: str = "NSE") -> dict:
     result = {"market": market, "indices": indices}
     _cache_set(key, result, ttl=180)
     return result
+
+
+# ── Health check ─────────────────────────────────────────────────────────────
+
+def _probe(url: str, headers: dict, check) -> dict:
+    t = time.time()
+    try:
+        r = requests.get(url, headers=headers, timeout=8)
+        ms = int((time.time() - t) * 1000)
+        if r.status_code != 200:
+            return {"ok": False, "ms": ms, "detail": f"HTTP {r.status_code}"}
+        ok, detail = check(r.json())
+        return {"ok": ok, "ms": ms, "detail": detail}
+    except Exception as e:
+        return {"ok": False, "ms": int((time.time() - t) * 1000), "detail": type(e).__name__}
+
+def check_sources() -> dict:
+    """Live-test each upstream price source. Cached for a minute so it can't hammer them."""
+    cached = _cache_get("source_status")
+    if cached:
+        return cached
+
+    now = datetime.now()
+    start_ms = int((now - timedelta(days=5)).timestamp() * 1000)
+    end_ms = int(now.timestamp() * 1000)
+
+    result = {
+        "groww_prices": _probe(
+            "https://groww.in/v1/api/stocks_data/v1/tr_live_prices/exchange/NSE/segment/CASH/RELIANCE/latest",
+            GROWW_HEADERS,
+            lambda d: (float(d.get("ltp", 0) or 0) > 0, "no price in response" if not d.get("ltp") else "ok"),
+        ),
+        "groww_history": _probe(
+            f"https://groww.in/v1/api/charting_service/v2/chart/exchange/NSE/segment/CASH/RELIANCE"
+            f"?startTimeInMs={start_ms}&endTimeInMs={end_ms}&intervalInMinutes=1440",
+            GROWW_HEADERS,
+            lambda d: (bool(d.get("candles")), "no candles in response" if not d.get("candles") else "ok"),
+        ),
+        "yahoo_india": _probe(
+            "https://query1.finance.yahoo.com/v8/finance/chart/RELIANCE.NS?interval=1d&range=5d",
+            YF_HEADERS,
+            lambda d: (bool(d.get("chart", {}).get("result")), "no data in response"),
+        ),
+        "yahoo_us": _probe(
+            "https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=5d",
+            YF_HEADERS,
+            lambda d: (bool(d.get("chart", {}).get("result")), "no data in response"),
+        ),
+    }
+    _cache_set("source_status", result, ttl=60)
+    return result

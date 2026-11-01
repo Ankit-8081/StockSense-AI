@@ -38,6 +38,7 @@ export const stocksAPI = {
     api.get(`/stocks/history/${symbol}`, { params: { market, period, interval } }),
   search: (q) => api.get("/stocks/search", { params: { q } }),
   movers: (market = "NSE") => api.get("/stocks/movers", { params: { market } }),
+  status: () => api.get("/stocks/status"),
 };
 
 export const newsAPI = {

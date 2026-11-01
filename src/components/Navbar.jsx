@@ -1,9 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Star, Activity, Filter, Newspaper, Search, Bell, KeyRound, LogOut, ChevronDown } from "lucide-react";
+import { LayoutDashboard, Star, Activity, Filter, Newspaper, Search, Bell, KeyRound, LogOut, ChevronDown, Sun, Moon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { alertsAPI } from "../services/api";
-import { symbolOf } from "./ui";
+import { alertsAPI, stocksAPI } from "../services/api";
+import { useTheme } from "../theme";
+import { symbolOf, Segmented } from "./ui";
+
+const SOURCE_LABELS = {
+  groww_prices: "Groww prices (India)",
+  groww_history: "Groww charts (India)",
+  yahoo_india: "Yahoo fallback (India)",
+  yahoo_us: "Yahoo (US)",
+};
 
 const NAV = [
   { to: "/",            icon: LayoutDashboard, label: "Markets",     end: true },
@@ -50,6 +58,8 @@ export function Topbar() {
   const [fired, setFired] = useState([]);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [themePref, setThemePref, resolvedTheme] = useTheme();
+  const [sources, setSources] = useState(null);
   const alertsRef = useRef(null);
   const accountRef = useRef(null);
 
@@ -68,6 +78,13 @@ export function Topbar() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
+  // Check the price sources each time the account menu opens
+  useEffect(() => {
+    if (!accountOpen) return;
+    setSources(null);
+    stocksAPI.status().then((r) => setSources(r.data)).catch(() => setSources({ error: true }));
+  }, [accountOpen]);
+
   const submit = (e) => {
     e.preventDefault();
     const q = query.trim();
@@ -84,6 +101,11 @@ export function Topbar() {
         />
       </form>
       <div className="topbar-spacer" />
+
+      <button className="icon-btn" onClick={() => setThemePref(resolvedTheme === "light" ? "dark" : "light")}
+        aria-label={resolvedTheme === "light" ? "Switch to dark theme" : "Switch to light theme"}>
+        {resolvedTheme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+      </button>
 
       <div ref={alertsRef} style={{ position: "relative" }}>
         <button
@@ -122,7 +144,7 @@ export function Topbar() {
           <ChevronDown size={14} />
         </button>
         {accountOpen && (
-          <div className="menu" style={{ width: 230 }}>
+          <div className="menu" style={{ width: 290 }}>
             <div className="menu-head">
               <strong>{user?.name}</strong>
               <span className="sub">{user?.email}</span>
@@ -134,6 +156,27 @@ export function Topbar() {
             <button className="menu-item" onClick={logout}>
               <LogOut size={16} /> Sign out
             </button>
+            <div className="menu-sep" />
+            <div className="menu-head">
+              <strong style={{ display: "block", marginBottom: 8 }}>Theme</strong>
+              <Segmented block value={themePref} onChange={setThemePref} label="Theme"
+                options={[{ value: "system", label: "System" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
+            </div>
+            <div className="menu-sep" />
+            <div className="menu-head">
+              <strong style={{ display: "block", marginBottom: 6 }}>Data sources</strong>
+              {sources === null ? <span className="muted">Checking…</span>
+                : sources.error ? <span className="muted">Couldn't check. Is the backend running?</span>
+                : Object.entries(sources).map(([k, v]) => (
+                  <div className="src-row" key={k}>
+                    <span>{SOURCE_LABELS[k] || k}</span>
+                    <span className={`delta ${v.ok ? "up" : "down"}`}>
+                      {v.ok ? "Working" : "Down"}
+                      <span className="muted" style={{ fontWeight: 400 }}>{v.ok ? `${v.ms} ms` : v.detail}</span>
+                    </span>
+                  </div>
+                ))}
+            </div>
           </div>
         )}
       </div>
