@@ -41,3 +41,9 @@ def technicals(symbol: str, market: str = Query("NSE")):
 def events(symbol: str, market: str = Query("NSE")):
     from services.technicals import get_events
     return get_events(symbol, market)
+
+
+@router.get("/company/{symbol}")
+def company(symbol: str, market: str = Query("NSE")):
+    from services.company import get_company
+    return get_company(symbol, market)
