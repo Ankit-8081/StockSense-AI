@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
 import { TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import { stocksAPI, predictionAPI } from "../services/api";
-import { Segmented, Empty, Skel, money, compact } from "./ui";
+import { Segmented, Empty } from "./ui";
 import NewsCard from "./NewsCard";
 
 // Big money: crores for INR, B/T for USD.
@@ -35,7 +35,14 @@ function Marker({ low, high, price, label }) {
         <div><span>{label} low</span><b>{low > 0 ? num(low) : "—"}</b></div>
         <div style={{ textAlign: "right" }}><span>{label} high</span><b>{high > 0 ? num(high) : "—"}</b></div>
       </div>
-      <div className="ov-track">{ok && <i style={{ left: `${pos}%` }} aria-label={`Price is ${Math.round(pos)}% of the way up the range`} />}</div>
+      <div className="ov-track">
+        {ok && (
+          <div className="ov-pin" style={{ left: `${pos}%`, "--shift": pos < 8 ? "0%" : pos > 92 ? "-100%" : "-50%" }}
+            aria-label={`Current price ${num(price)}, ${Math.round(pos)}% of the way up the range`}>
+            <i /><span>{num(price)}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -52,7 +59,7 @@ function Insights({ symbol, market }) {
     return () => { live = false; };
   }, [symbol, market]);
 
-  if (state.loading) return <div className="ov-card"><Skel w="30%" h={20} /><Skel h={40} style={{ marginTop: 12 }} /></div>;
+  if (state.loading) return null;
   if (!state.available) {
     if (state.reason !== "no_key") return null;
     return (
@@ -238,7 +245,7 @@ export default function OverviewTab({ symbol, market, currency, quote, news, onS
     <div className="ov">
       <Insights symbol={symbol} market={market} />
       <Performance q={quote} currency={currency} />
-      {co.loading ? <div className="ov-card"><Skel w="30%" h={20} /><Skel h={120} style={{ marginTop: 12 }} /></div> : (
+      {co.loading ? null : (
         <>
           {co.fundamentals && <Fundamentals f={co.fundamentals} currency={currency} />}
           <Financials fin={co.financials} currency={currency} />

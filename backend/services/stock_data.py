@@ -63,8 +63,8 @@ def _groww_quote(symbol: str, market: str = "NSE") -> dict | None:
             "day_low":  float(d.get("low", 0) or 0),
             "upper_circuit": float(d.get("highPriceRange", 0) or d.get("upperCircuitLimit", 0) or 0),
             "lower_circuit": float(d.get("lowPriceRange", 0) or d.get("lowerCircuitLimit", 0) or 0),
-            "week_52_high": float(d.get("yearlyHigh", 0) or 0),
-            "week_52_low":  float(d.get("yearlyLow",  0) or 0),
+            "week_52_high": float(d.get("yearlyHigh") or d.get("yearHighPrice") or d.get("week52High") or 0),
+            "week_52_low":  float(d.get("yearlyLow") or d.get("yearLowPrice") or d.get("week52Low") or 0),
             "currency": "INR",
         }
     except Exception:
@@ -230,6 +230,25 @@ def _yf_v8_indices() -> list:
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
+def _fill_ranges(q: dict, symbol: str, market: str) -> None:
+    """The live-price sources sometimes omit the 52-week and day range; derive them from daily candles."""
+    if q.get("week_52_high") and q.get("week_52_low") and q.get("day_high") and q.get("day_low"):
+        return
+    try:
+        candles = [c for c in get_history(symbol, market, "1y", "1d") if c.get("close", 0) > 0]
+        if not candles:
+            return
+        if not (q.get("week_52_high") and q.get("week_52_low")):
+            q["week_52_high"] = max(c["high"] or c["close"] for c in candles)
+            q["week_52_low"] = min(c["low"] or c["close"] for c in candles if (c["low"] or c["close"]) > 0)
+        if not (q.get("day_high") and q.get("day_low")):
+            last = candles[-1]
+            q["day_high"], q["day_low"] = last["high"], last["low"]
+            q["day_open"] = q.get("day_open") or last["open"]
+    except Exception:
+        pass
+
+
 def get_quote(symbol: str, market: str) -> dict:
     key = f"quote_{symbol}_{market}"
     cached = _cache_get(key)
@@ -259,6 +278,18 @@ def get_quote(symbol: str, market: str) -> dict:
                 "week_52_high": 0, "week_52_low": 0, "currency": "USD",
             }
 
+    if result.get("price") and not (result.get("week_52_high") and result.get("week_52_low")):
+        # The live-price source didn't send a 52-week range: derive it from a year of daily candles.
+        try:
+            year = [c for c in get_history(symbol, market, "1y", "1d") if c.get("close", 0) > 0]
+            if year:
+                result["week_52_high"] = max(max(c["high"] or 0, c["close"]) for c in year)
+                result["week_52_low"] = min(min(c["low"] or c["close"], c["close"]) for c in year)
+        except Exception:
+            pass
+
+    if result.get("price"):
+        _fill_ranges(result, symbol, market)
     if result.get("price"):  # don't cache failed lookups
         _cache_set(key, result)
     return result

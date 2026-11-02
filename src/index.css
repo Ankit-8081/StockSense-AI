@@ -359,12 +359,14 @@
 .ov-insight p { margin: 4px 0 0; color: var(--text); line-height: 1.5; }
 .ov-insight-label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
 .ov-insight-label.up { color: var(--up); } .ov-insight-label.down { color: var(--down); } .ov-insight-label.flat { color: var(--mute); }
-.ov-range { margin-bottom: 22px; }
+.ov-range { margin-bottom: 44px; }
 .ov-range-ends { display: flex; justify-content: space-between; }
 .ov-range-ends span, .ov-stats span, .ov-kv span { display: block; font-size: 12px; color: var(--mute); }
 .ov-range-ends b, .ov-stats b, .ov-kv b { font-weight: 500; font-size: 14px; }
 .ov-track { position: relative; height: 6px; border-radius: 3px; background: var(--raise); margin-top: 8px; }
-.ov-track i { position: absolute; top: 10px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 9px solid var(--mute); transform: translateX(-50%); }
+.ov-pin { position: absolute; top: 8px; transform: translateX(var(--shift, -50%)); display: grid; justify-items: center; }
+.ov-pin i { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 9px solid var(--mute); }
+.ov-pin span { font-size: 12px; font-weight: 600; margin-top: 2px; white-space: nowrap; }
 .ov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 18px; margin-top: 28px; }
 .ov-kv { display: grid; }
 .ov-kv-row { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
