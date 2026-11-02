@@ -2,6 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+  timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {
@@ -29,11 +30,12 @@ export const authAPI = {
     form.append("password", password);
     return api.post("/auth/login", form);
   },
-  me: () => api.get("/auth/me"),
+  me: () => api.get("/auth/me", { timeout: 8000 }),
 };
 
 export const stocksAPI = {
-  quote: (symbol, market = "NSE") => api.get(`/stocks/quote/${symbol}`, { params: { market } }),
+  quote: (symbol, market = "NSE", detail = false) =>
+    api.get(`/stocks/quote/${symbol}`, { params: detail ? { market, detail: true } : { market } }),
   history: (symbol, market = "NSE", period = "3mo", interval = "1d") =>
     api.get(`/stocks/history/${symbol}`, { params: { market, period, interval } }),
   search: (q) => api.get("/stocks/search", { params: { q } }),

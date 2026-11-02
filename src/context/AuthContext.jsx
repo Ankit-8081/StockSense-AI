@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { authAPI } from "../services/api";
 
 const AuthContext = createContext(null);
@@ -6,18 +6,29 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [serverDown, setServerDown] = useState(false);
 
-  useEffect(() => {
+  const check = useCallback(async () => {
     const token = localStorage.getItem("token");
-    if (token) {
-      authAPI.me()
-        .then((res) => setUser(res.data))
-        .catch(() => localStorage.removeItem("token"))
-        .finally(() => setLoading(false));
-    } else {
+    if (!token) { setLoading(false); return; }
+    setLoading(true);
+    setServerDown(false);
+    try {
+      let res;
+      try { res = await authAPI.me(); } catch (e) {
+        if (e.response) throw e;          // a real answer (e.g. 401): don't retry
+        res = await authAPI.me();         // no answer at all: try once more
+      }
+      setUser(res.data);
+    } catch (e) {
+      if (e.response) localStorage.removeItem("token");   // token rejected
+      else setServerDown(true);                           // server unreachable: keep the login
+    } finally {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => { check(); }, [check]);
 
   const login = async (email, password) => {
     const res = await authAPI.login(email, password);
@@ -32,7 +43,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, serverDown, retry: check }}>
       {children}
     </AuthContext.Provider>
   );

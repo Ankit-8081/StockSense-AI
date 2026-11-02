@@ -4,8 +4,13 @@ from services.stock_data import get_quote, get_history, search_symbols, get_mark
 router = APIRouter()
 
 @router.get("/quote/{symbol}")
-def quote(symbol: str, market: str = Query("NSE")):
-    return get_quote(symbol, market)
+def quote(symbol: str, market: str = Query("NSE"), detail: bool = Query(False)):
+    q = get_quote(symbol, market)
+    if detail and q.get("price"):
+        from services.stock_data import _fill_ranges
+        q = dict(q)
+        _fill_ranges(q, symbol, market)   # derive 52-week / day range from candles if the source omitted them
+    return q
 
 @router.get("/history/{symbol}")
 def history(

@@ -288,8 +288,6 @@ def get_quote(symbol: str, market: str) -> dict:
         except Exception:
             pass
 
-    if result.get("price"):
-        _fill_ranges(result, symbol, market)
     if result.get("price"):  # don't cache failed lookups
         _cache_set(key, result)
     return result
