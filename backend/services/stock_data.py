@@ -58,6 +58,11 @@ def _groww_quote(symbol: str, market: str = "NSE") -> dict | None:
             "change": change,          "change_pct": change_pct,
             "volume": int(d.get("tradedVolume", 0) or 0),
             "market_cap": 0,
+            "day_open": float(d.get("open", 0) or 0),
+            "day_high": float(d.get("high", 0) or 0),
+            "day_low":  float(d.get("low", 0) or 0),
+            "upper_circuit": float(d.get("highPriceRange", 0) or d.get("upperCircuitLimit", 0) or 0),
+            "lower_circuit": float(d.get("lowPriceRange", 0) or d.get("lowerCircuitLimit", 0) or 0),
             "week_52_high": float(d.get("yearlyHigh", 0) or 0),
             "week_52_low":  float(d.get("yearlyLow",  0) or 0),
             "currency": "INR",
@@ -150,6 +155,10 @@ def _yf_v8_quote(symbol: str, market: str, ticker: str = None, currency: str = "
             "change": change,         "change_pct": change_pct,
             "volume": int(meta.get("regularMarketVolume", 0) or 0),
             "market_cap": 0,
+            "day_open": 0,
+            "day_high": float(meta.get("regularMarketDayHigh", 0) or 0),
+            "day_low":  float(meta.get("regularMarketDayLow", 0) or 0),
+            "upper_circuit": 0, "lower_circuit": 0,
             "week_52_high": float(meta.get("fiftyTwoWeekHigh", 0) or 0),
             "week_52_low":  float(meta.get("fiftyTwoWeekLow",  0) or 0),
             "currency": currency,
@@ -180,6 +189,9 @@ def _yf_v8_history(symbol: str, period: str = "3mo", interval: str = "1d") -> li
         records = []
         for i, ts in enumerate(timestamps):
             try:
+                # Yahoo sends null for the in-progress/empty bar; skip it rather than plot 0
+                if not closes[i] or closes[i] <= 0:
+                    continue
                 dt = datetime.fromtimestamp(ts)
                 fmt = "%Y-%m-%d %H:%M" if interval not in ["1d", "1wk", "1mo"] else "%Y-%m-%d"
                 records.append({

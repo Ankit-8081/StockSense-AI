@@ -39,6 +39,9 @@ export const stocksAPI = {
   search: (q) => api.get("/stocks/search", { params: { q } }),
   movers: (market = "NSE") => api.get("/stocks/movers", { params: { market } }),
   status: () => api.get("/stocks/status"),
+  technicals: (symbol, market = "NSE") => api.get(`/stocks/technicals/${symbol}`, { params: { market } }),
+  company: (symbol, market = "NSE") => api.get(`/stocks/company/${symbol}`, { params: { market } }),
+  events: (symbol, market = "NSE") => api.get(`/stocks/events/${symbol}`, { params: { market } }),
 };
 
 export const newsAPI = {
@@ -50,6 +53,7 @@ export const predictionAPI = {
   predict: (symbol, market = "NSE", type = "delivery") =>
     api.get(`/predict/${symbol}`, { params: { market, type } }),
   history: () => api.get("/predict/history/me"),
+  insights: (symbol, market = "NSE") => api.get(`/predict/insights/${symbol}`, { params: { market } }),
 };
 
 export const watchlistAPI = {

@@ -29,3 +29,21 @@ def movers(market: str = Query("NSE")):
 def status():
     """Is each upstream price source (Groww, Yahoo) reachable and returning data?"""
     return check_sources()
+
+
+@router.get("/technicals/{symbol}")
+def technicals(symbol: str, market: str = Query("NSE")):
+    from services.technicals import get_technicals
+    return get_technicals(symbol, market)
+
+
+@router.get("/events/{symbol}")
+def events(symbol: str, market: str = Query("NSE")):
+    from services.technicals import get_events
+    return get_events(symbol, market)
+
+
+@router.get("/company/{symbol}")
+def company(symbol: str, market: str = Query("NSE")):
+    from services.company import get_company
+    return get_company(symbol, market)

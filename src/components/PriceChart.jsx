@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useState, useEffect, useMemo } from "react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { RefreshCw } from "lucide-react";
 import { stocksAPI } from "../services/api";
 import { theme } from "../theme";
@@ -8,25 +8,58 @@ import { symbolOf, Segmented } from "./ui";
 const PERIODS = [
   { value: "1D", label: "1D", period: "1d",  interval: "5m" },
   { value: "1W", label: "1W", period: "5d",  interval: "15m" },
-  { value: "1M", label: "1M", period: "1mo", interval: "1d" },
-  { value: "3M", label: "3M", period: "3mo", interval: "1d" },
+  { value: "1M", label: "1M", period: "1mo", interval: "30m" },
+  { value: "3M", label: "3M", period: "3mo", interval: "60m" },
   { value: "6M", label: "6M", period: "6mo", interval: "1d" },
   { value: "1Y", label: "1Y", period: "1y",  interval: "1d" },
 ];
 
+const parse = (t) => new Date(String(t).replace(" ", "T"));
+const fmtTime = (d) => d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+const fmtDay = (d) => d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric" });
+const fmtDate = (d) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+const fmtMonth = (d) => d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+
+function buildTicks(data, key) {
+  const real = data.filter((d) => d.close != null);
+  if (!real.length) return [];
+  if (key === "1W") {
+    const seen = new Set();
+    return real.filter((d) => { const k = d.time.slice(0, 10); if (seen.has(k)) return false; seen.add(k); return true; })
+      .map((d) => d.time);
+  }
+  const n = 6;
+  const step = Math.max(1, Math.floor((real.length - 1) / (n - 1)));
+  const ticks = [];
+  for (let i = 0; i < real.length; i += step) ticks.push(real[i].time);
+  return ticks;
+}
+
 function ChartTooltip({ active, payload, label, currency }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
+  if (d.close == null) return null;
+  const dt = parse(d.time);
+  const stamp = d.time.length > 10 ? `${fmtDate(dt)}, ${fmtTime(dt)}` : dt.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   const s = symbolOf(currency);
   return (
     <div style={{ background: theme.panel, border: `1px solid ${theme.rule}`, borderRadius: 6, padding: "10px 12px", fontSize: 12 }}>
-      <div style={{ color: theme.mute }}>{label}</div>
+      <div style={{ color: theme.mute }}>{stamp}</div>
       <div style={{ fontWeight: 600, fontSize: 15, margin: "2px 0 4px" }}>{s}{d.close?.toLocaleString()}</div>
       <div style={{ color: theme.mute }}>
         High {s}{d.high?.toLocaleString()} · Low {s}{d.low?.toLocaleString()}
       </div>
       <div style={{ color: theme.mute }}>Volume {d.volume?.toLocaleString()}</div>
     </div>
+  );
+}
+
+// Edge labels are anchored inward so the first and last never get clipped.
+function XTick({ x, y, payload, fmt, ticks, last }) {
+  const i = ticks.indexOf(payload.value);
+  const anchor = i === 0 ? "start" : i === last ? "end" : "middle";
+  return (
+    <text x={x} y={y + 14} textAnchor={anchor} fontSize={11} fill={theme.mute}>{fmt(payload.value)}</text>
   );
 }
 
@@ -43,7 +76,7 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
     setFailed(false);
     try {
       const res = await fetchHistory(symbol, market, p.period, p.interval);
-      setCandles(res.data.candles || []);
+      setCandles((res.data.candles || []).filter((c) => c.close > 0));
     } catch {
       setCandles([]);
       setFailed(true);
@@ -56,14 +89,17 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
 
   const isUp = candles.length > 1 && candles[candles.length - 1]?.close >= candles[0]?.close;
   const color = isUp ? theme.up : theme.down;
-  const intraday = period.interval === "5m" || period.interval === "15m";
+
+  const data = candles;
+  const ticks = useMemo(() => buildTicks(data, selected), [data, selected]);
 
   const formatX = (val) => {
-    if (!val) return "";
-    const d = new Date(val.replace(" ", "T"));
-    return intraday
-      ? d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
-      : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    if (!val || String(val).startsWith("gap")) return "";
+    const d = parse(val);
+    if (selected === "1D") return fmtTime(d);
+    if (selected === "1W") return fmtDay(d);
+    if (selected === "1Y") return fmtMonth(d);
+    return fmtDate(d);
   };
 
   return (
@@ -83,7 +119,7 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={candles} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="fillPrice" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={color} stopOpacity={0.22} />
@@ -91,14 +127,15 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={theme.ruleSoft} vertical={false} />
-              <XAxis dataKey="time" tickFormatter={formatX} tick={{ fontSize: 11, fill: theme.mute }}
-                tickLine={false} axisLine={{ stroke: theme.rule }} interval="preserveStartEnd" minTickGap={48} />
+              <XAxis dataKey="time" tick={<XTick fmt={formatX} last={ticks.length - 1} ticks={ticks} />}
+                tickLine={false} axisLine={{ stroke: theme.rule }} ticks={ticks} interval={0} minTickGap={24} />
               <YAxis domain={["auto", "auto"]} orientation="right" width={68} tick={{ fontSize: 11, fill: theme.mute }}
                 tickLine={false} axisLine={false}
                 tickFormatter={(v) => `${symbolOf(currency)}${v.toLocaleString()}`} />
-              <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ stroke: theme.mute, strokeDasharray: "3 3" }} />
-              <Area type="monotone" dataKey="close" stroke={color} strokeWidth={2} fill="url(#fillPrice)"
-                dot={false} activeDot={{ r: 4, fill: color, stroke: theme.ink }} />
+              <Tooltip isAnimationActive={false} content={<ChartTooltip currency={currency} />} cursor={{ stroke: theme.mute, strokeDasharray: "3 3" }} />
+              <ReferenceLine y={candles[0]?.close} stroke={theme.mute} strokeDasharray="4 4" strokeOpacity={0.5} />
+              <Area type="linear" dataKey="close" stroke={color} strokeWidth={2} fill="url(#fillPrice)"
+                connectNulls={false} dot={false} activeDot={{ r: 4, fill: color, stroke: theme.ink }} />
             </AreaChart>
           </ResponsiveContainer>
         )}
