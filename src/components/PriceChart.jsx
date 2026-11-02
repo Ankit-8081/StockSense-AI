@@ -67,7 +67,7 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
     setFailed(false);
     try {
       const res = await fetchHistory(symbol, market, p.period, p.interval);
-      setCandles(res.data.candles || []);
+      setCandles((res.data.candles || []).filter((c) => c.close > 0));
     } catch {
       setCandles([]);
       setFailed(true);

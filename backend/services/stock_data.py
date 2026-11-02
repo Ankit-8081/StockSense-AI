@@ -180,6 +180,9 @@ def _yf_v8_history(symbol: str, period: str = "3mo", interval: str = "1d") -> li
         records = []
         for i, ts in enumerate(timestamps):
             try:
+                # Yahoo sends null for the in-progress/empty bar; skip it rather than plot 0
+                if not closes[i] or closes[i] <= 0:
+                    continue
                 dt = datetime.fromtimestamp(ts)
                 fmt = "%Y-%m-%d %H:%M" if interval not in ["1d", "1wk", "1mo"] else "%Y-%m-%d"
                 records.append({
