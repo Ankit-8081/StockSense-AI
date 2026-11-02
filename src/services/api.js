@@ -39,6 +39,8 @@ export const stocksAPI = {
   search: (q) => api.get("/stocks/search", { params: { q } }),
   movers: (market = "NSE") => api.get("/stocks/movers", { params: { market } }),
   status: () => api.get("/stocks/status"),
+  technicals: (symbol, market = "NSE") => api.get(`/stocks/technicals/${symbol}`, { params: { market } }),
+  events: (symbol, market = "NSE") => api.get(`/stocks/events/${symbol}`, { params: { market } }),
 };
 
 export const newsAPI = {

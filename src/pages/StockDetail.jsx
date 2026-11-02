@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Star, Bell, Activity } from "lucide-react";
 import { stocksAPI, newsAPI, predictionAPI, watchlistAPI, alertsAPI } from "../services/api";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
+import { TabBar, TABS, TechnicalsTab, EventsTab } from "../components/StockTabs";
 import NewsCard from "../components/NewsCard";
 import { Delta, RangeBar, Segmented, Empty, Skel, money, compact, currencyOf, symbolOf } from "../components/ui";
 
@@ -22,6 +23,9 @@ export default function StockDetail() {
   const [alertSaved, setAlertSaved] = useState(false);
   const [alertError, setAlertError] = useState("");
   const currency = currencyOf(market);
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.includes(params.get("tab")) ? params.get("tab") : "Overview";
+  const setTab = (t) => setParams(t === "Overview" ? {} : { tab: t }, { replace: true });
 
   useEffect(() => {
     if (!symbol || !market) return;
@@ -91,31 +95,53 @@ export default function StockDetail() {
         </div>
       </div>
 
+      <TabBar value={tab} onChange={setTab} />
+
       <div className="cols cols-detail">
         <div className="stack">
-          <PriceChart symbol={symbol} market={market} currency={currency} />
+          {tab === "Overview" && (
+            <>
+              <PriceChart symbol={symbol} market={market} currency={currency} />
 
-          <section className="panel" aria-label="Key figures">
-            <div className="stat-grid">
-              <div className="stat"><div className="stat-label">Previous close</div><div className="stat-value">{priced ? money(quote.prev_close, currency) : "—"}</div></div>
-              <div className="stat"><div className="stat-label">Volume</div><div className="stat-value">{priced ? compact(quote.volume) : "—"}</div></div>
-              <div className="stat" style={{ gridColumn: "span 2", minWidth: 240 }}>
-                <div className="stat-label" style={{ marginBottom: 12 }}>52-week range</div>
-                {priced ? <RangeBar low={quote.week_52_low} high={quote.week_52_high} price={quote.price} currency={currency} showEnds /> : "—"}
-              </div>
-            </div>
-          </section>
+              <section className="panel" aria-label="Key figures">
+                <div className="stat-grid">
+                  <div className="stat"><div className="stat-label">Previous close</div><div className="stat-value">{priced ? money(quote.prev_close, currency) : "—"}</div></div>
+                  <div className="stat"><div className="stat-label">Volume</div><div className="stat-value">{priced ? compact(quote.volume) : "—"}</div></div>
+                  <div className="stat" style={{ gridColumn: "span 2", minWidth: 240 }}>
+                    <div className="stat-label" style={{ marginBottom: 12 }}>52-week range</div>
+                    {priced ? <RangeBar low={quote.week_52_low} high={quote.week_52_high} price={quote.price} currency={currency} showEnds /> : "—"}
+                  </div>
+                </div>
+              </section>
 
-          <section className="panel" aria-label="News">
-            <div className="panel-head"><h2 className="panel-title">News on {symbol?.toUpperCase()}</h2></div>
-            {news.length === 0 ? (
-              <Empty title="No news found">
-                No recent headlines turned up for this stock. The news sources may be unreachable.
-              </Empty>
-            ) : (
-              <ul className="row-list">{news.map((a, i) => <li key={i}><NewsCard article={a} /></li>)}</ul>
-            )}
-          </section>
+              <section className="panel" aria-label="News">
+                <div className="panel-head">
+                  <h2 className="panel-title">Latest news</h2>
+                  {news.length > 3 && <button className="link" onClick={() => setTab("News")}>See all</button>}
+                </div>
+                {news.length === 0 ? (
+                  <Empty title="No news found">No recent headlines turned up for this stock. The news sources may be unreachable.</Empty>
+                ) : (
+                  <ul className="row-list">{news.slice(0, 3).map((a, i) => <li key={i}><NewsCard article={a} /></li>)}</ul>
+                )}
+              </section>
+            </>
+          )}
+
+          {tab === "Technicals" && <TechnicalsTab symbol={symbol} market={market} currency={currency} />}
+
+          {tab === "News" && (
+            <section className="panel" aria-label="News">
+              <div className="panel-head"><h2 className="panel-title">News on {symbol?.toUpperCase()}</h2></div>
+              {news.length === 0 ? (
+                <Empty title="No news found">No recent headlines turned up for this stock. The news sources may be unreachable.</Empty>
+              ) : (
+                <ul className="row-list">{news.map((a, i) => <li key={i}><NewsCard article={a} /></li>)}</ul>
+              )}
+            </section>
+          )}
+
+          {tab === "Events" && <EventsTab symbol={symbol} market={market} currency={currency} />}
         </div>
 
         <div className="stack">
