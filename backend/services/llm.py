@@ -69,5 +69,9 @@ def ask_json(messages, groq_key=None, google_key=None, temperature=0.1) -> dict:
         try:
             return parse_json(_text(make(key, temperature).invoke(messages).content))
         except Exception as e:
-            errors.append(f"{name}: {e}")
+            msg = str(e).lower()
+            if any(x in msg for x in ("prepayment", "credits are depleted", "resourceexhausted", "quota", "429", "rate limit")):
+                errors.append(f"{name} has no credits or quota left. Add credits (Google AI Studio / Groq console) or use another key")
+            else:
+                errors.append(f"{name}: {e}")
     raise RuntimeError("; ".join(errors) or "No AI key available")
