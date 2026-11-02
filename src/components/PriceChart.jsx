@@ -20,20 +20,6 @@ const fmtDay = (d) => d.toLocaleDateString("en-IN", { weekday: "short", day: "nu
 const fmtDate = (d) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 const fmtMonth = (d) => d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
 
-// Insert an empty point between trading days so the line breaks overnight/weekends
-// instead of joining one session's close to the next session's open.
-function withBreaks(candles, multiDay) {
-  if (!multiDay) return candles;
-  const out = [];
-  candles.forEach((c, i) => {
-    if (i > 0 && c.time.slice(0, 10) !== candles[i - 1].time.slice(0, 10)) {
-      out.push({ time: `gap-${i}`, close: null });
-    }
-    out.push(c);
-  });
-  return out;
-}
-
 function buildTicks(data, key) {
   const real = data.filter((d) => d.close != null);
   if (!real.length) return [];
@@ -95,8 +81,7 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
   const isUp = candles.length > 1 && candles[candles.length - 1]?.close >= candles[0]?.close;
   const color = isUp ? theme.up : theme.down;
 
-  const multiDay = selected === "1W";
-  const data = useMemo(() => withBreaks(candles, multiDay), [candles, multiDay]);
+  const data = candles;
   const ticks = useMemo(() => buildTicks(data, selected), [data, selected]);
 
   const formatX = (val) => {
