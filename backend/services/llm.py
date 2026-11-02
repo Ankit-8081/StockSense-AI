@@ -3,7 +3,11 @@ import json
 import re
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
-GEMINI_MODEL = "gemini-2.5-flash"
+import os
+
+# Google retires Gemini models often. Try the newest first; override with GEMINI_MODEL in .env.
+GEMINI_MODELS = [m for m in (os.getenv("GEMINI_MODEL"), "gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash") if m]
+_gemini_ok = None  # remembers the model that last worked
 
 
 def _groq(key, temperature):
@@ -11,9 +15,32 @@ def _groq(key, temperature):
     return ChatGroq(api_key=key, model_name=GROQ_MODEL, temperature=temperature)
 
 
+class _GeminiChat:
+    """Calls Gemini, moving to the next model name if one has been retired (404 / not found)."""
+    def __init__(self, key, temperature):
+        self.key, self.temperature = key, temperature
+
+    def invoke(self, messages):
+        global _gemini_ok
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        order = ([_gemini_ok] if _gemini_ok else []) + [m for m in GEMINI_MODELS if m != _gemini_ok]
+        last = None
+        for model in order:
+            try:
+                out = ChatGoogleGenerativeAI(model=model, google_api_key=self.key,
+                                             temperature=self.temperature, max_retries=1).invoke(messages)
+                _gemini_ok = model
+                return out
+            except Exception as e:
+                last = e
+                msg = str(e).lower()
+                if not any(x in msg for x in ("404", "not found", "notfound", "no longer available", "not supported")):
+                    raise
+        raise last
+
+
 def _gemini(key, temperature):
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    return ChatGoogleGenerativeAI(model=GEMINI_MODEL, google_api_key=key, temperature=temperature)
+    return _GeminiChat(key, temperature)
 
 
 def _text(content) -> str:
