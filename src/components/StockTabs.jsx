@@ -104,59 +104,55 @@ export function TechnicalsTab({ symbol, market, currency }) {
   );
 }
 
-export function EventsTab({ symbol, market, currency }) {
+const EVENT_FILTERS = [["all", "All"], ["result", "Results"], ["dividend", "Dividends"], ["split", "Splits"], ["move", "Big moves"]];
+
+export function EventsTab({ symbol, market, currency, onOpenFinancials }) {
   const { loading, data, error } = useLoad(() => stocksAPI.events(symbol, market), [symbol, market]);
+  const [filter, setFilter] = useState("all");
   if (loading) return <section className="panel"><Loading /></section>;
   if (error || !data) {
     return <section className="panel"><Empty title="Events aren't available">The events could not be loaded. Try again in a minute.</Empty></section>;
   }
-  const none = !data.dividends.length && !data.splits.length && !data.big_moves.length;
-  if (none) {
-    return <section className="panel"><Empty title="No events found">No dividends, splits or large price moves turned up for this stock.</Empty></section>;
+  const events = data.events || [];
+  if (!events.length) {
+    return <section className="panel"><Empty title="No events found">No results, dividends, splits or large price moves turned up for this stock.</Empty></section>;
   }
-  const fmt = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const shown = events.filter((e) => filter === "all" || e.type === filter);
+  const years = [...new Set(shown.map((e) => e.date.slice(0, 4)))];
+  const present = new Set(events.map((e) => e.type));
   return (
-    <div className="stack">
-      <section className="panel">
-        <div className="panel-head"><h2 className="panel-title">Dividends</h2></div>
-        {data.dividends.length === 0 ? (
-          <Empty title="No dividends on record">{data.source_ok ? "This stock hasn't paid a dividend in the last 10 years." : "The dividend source didn't respond."}</Empty>
-        ) : (
-          <div className="tbl-wrap"><table className="tbl"><tbody>
-            {data.dividends.map((d) => (
-              <tr key={d.date}><td>{fmt(d.date)}<span className="sub">Ex-date</span></td><td className="num">{money(d.amount, currency)} per share</td></tr>
-            ))}
-          </tbody></table></div>
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="panel-head"><h2 className="panel-title">Splits</h2></div>
-        {data.splits.length === 0 ? (
-          <Empty title="No splits on record">{data.source_ok ? "No stock splits in the last 10 years." : "The splits source didn't respond."}</Empty>
-        ) : (
-          <div className="tbl-wrap"><table className="tbl"><tbody>
-            {data.splits.map((s) => (<tr key={s.date}><td>{fmt(s.date)}</td><td className="num">{s.ratio}</td></tr>))}
-          </tbody></table></div>
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="panel-head"><h2 className="panel-title">Big price moves</h2></div>
-        {data.big_moves.length === 0 ? (
-          <Empty title="No big moves">No single day moved 4% or more in the last year.</Empty>
-        ) : (
-          <div className="tbl-wrap"><table className="tbl"><tbody>
-            {data.big_moves.map((m) => (
-              <tr key={m.date}>
-                <td>{fmt(m.date)}<span className="sub">Daily move of 4% or more</span></td>
-                <td className="num">{money(m.close, currency)}</td>
-                <td className="num"><span className={`verdict ${m.change_pct > 0 ? "up" : "down"}`}>{m.change_pct > 0 ? "+" : ""}{m.change_pct}%</span></td>
-              </tr>
-            ))}
-          </tbody></table></div>
-        )}
-      </section>
+    <div className="ev">
+      <div className="ov-chips">
+        {EVENT_FILTERS.filter(([k]) => k === "all" || present.has(k)).map(([k, label]) => (
+          <button key={k} className="ov-chip" aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>
+        ))}
+      </div>
+      {years.map((y) => (
+        <section key={y} aria-label={y}>
+          <h2 className="ev-year">{y}</h2>
+          <ul className="ev-list">
+            {shown.filter((e) => e.date.startsWith(y)).map((e, i) => {
+              const d = new Date(e.date + "T00:00:00");
+              return (
+                <li className="ev-card" key={`${e.type}-${e.date}-${i}`}>
+                  <div className="ev-date"><b>{d.getDate()}</b><span>{d.toLocaleDateString("en-IN", { month: "short" })}</span></div>
+                  <div className="ev-main">
+                    <div className="ev-title">{e.title}</div>
+                    <div className="ev-sub">{e.sub}</div>
+                  </div>
+                  <div className="ev-side">
+                    {e.type === "result" && <button className="link" onClick={onOpenFinancials}>Check latest financial ›</button>}
+                    {e.type === "dividend" && <><b>{money(e.amount, currency)}</b><span>per share</span></>}
+                    {e.type === "split" && <><b>{e.ratio}</b><span>split ratio</span></>}
+                    {e.type === "move" && <><b className={e.change_pct > 0 ? "pos" : "neg"}>{e.change_pct > 0 ? "+" : ""}{e.change_pct}%</b><span>closed {money(e.close, currency)}</span></>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+      <p className="hint">Results show the quarter-end date when the source has no release date. Dividends are listed by ex-date.</p>
     </div>
   );
 }

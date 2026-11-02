@@ -117,7 +117,7 @@ export default function StockDetail() {
             </section>
           )}
 
-          {tab === "Events" && <EventsTab symbol={symbol} market={market} currency={currency} />}
+          {tab === "Events" && <EventsTab symbol={symbol} market={market} currency={currency} onOpenFinancials={() => setTab("Overview")} />}
         </div>
 
         <div className="stack">

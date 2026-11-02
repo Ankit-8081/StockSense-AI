@@ -391,3 +391,18 @@
   .ov-kv-row, .ov-grow { grid-template-columns: 1fr; gap: 0; }
   .ov-hold { grid-template-columns: 70px 1fr 56px; gap: 10px; }
 }
+
+/* Events timeline */
+.ev { display: grid; gap: 8px; }
+.ev-year { font-size: 20px; font-weight: 600; color: var(--mute); margin: 18px 0 12px; }
+.ev-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.ev-card { display: flex; align-items: center; gap: 18px; padding: 18px 20px; border: 1px solid var(--rule); border-radius: 14px; background: var(--panel); }
+.ev-date { width: 54px; height: 66px; border: 1px solid var(--rule); border-radius: 10px; display: grid; place-content: center; text-align: center; flex: none; }
+.ev-date b { font-size: 18px; font-weight: 600; line-height: 1.1; }
+.ev-date span { font-size: 13px; color: var(--mute); }
+.ev-main { flex: 1; min-width: 0; }
+.ev-title { font-weight: 600; }
+.ev-sub { font-size: 13px; color: var(--mute); margin-top: 2px; }
+.ev-side { text-align: right; display: grid; justify-items: end; }
+.ev-side b { font-weight: 600; font-size: 15px; }
+.ev-side span { font-size: 13px; color: var(--mute); }
