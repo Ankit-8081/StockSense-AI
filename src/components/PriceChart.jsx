@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { RefreshCw } from "lucide-react";
 import { stocksAPI } from "../services/api";
 import { theme } from "../theme";
@@ -8,8 +8,8 @@ import { symbolOf, Segmented } from "./ui";
 const PERIODS = [
   { value: "1D", label: "1D", period: "1d",  interval: "5m" },
   { value: "1W", label: "1W", period: "5d",  interval: "15m" },
-  { value: "1M", label: "1M", period: "1mo", interval: "1d" },
-  { value: "3M", label: "3M", period: "3mo", interval: "1d" },
+  { value: "1M", label: "1M", period: "1mo", interval: "30m" },
+  { value: "3M", label: "3M", period: "3mo", interval: "60m" },
   { value: "6M", label: "6M", period: "6mo", interval: "1d" },
   { value: "1Y", label: "1Y", period: "1y",  interval: "1d" },
 ];
@@ -124,7 +124,8 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
                 tickLine={false} axisLine={false}
                 tickFormatter={(v) => `${symbolOf(currency)}${v.toLocaleString()}`} />
               <Tooltip isAnimationActive={false} content={<ChartTooltip currency={currency} />} cursor={{ stroke: theme.mute, strokeDasharray: "3 3" }} />
-              <Area type="monotone" dataKey="close" stroke={color} strokeWidth={2} fill="url(#fillPrice)"
+              <ReferenceLine y={candles[0]?.close} stroke={theme.mute} strokeDasharray="4 4" strokeOpacity={0.5} />
+              <Area type="linear" dataKey="close" stroke={color} strokeWidth={2} fill="url(#fillPrice)"
                 connectNulls={false} dot={false} activeDot={{ r: 4, fill: color, stroke: theme.ink }} />
             </AreaChart>
           </ResponsiveContainer>
