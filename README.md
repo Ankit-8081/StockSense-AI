@@ -189,11 +189,10 @@ StockSense-AI/
 
 ## 👤 Author
 
-**Ankit** — B.Tech CS · Full Stack Developer  
+**Ankit** — B.Tech CSE · AI Engineer
 [GitHub](https://github.com/Ankit-8081) · [LinkedIn](https://linkedin.com/in/ankit-8081)
 
 ---
 
 ## 📄 License
-
-MIT License
+Licensed under the [PPL License](./License).
