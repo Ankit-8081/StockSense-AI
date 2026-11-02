@@ -54,6 +54,15 @@ function ChartTooltip({ active, payload, label, currency }) {
   );
 }
 
+// Edge labels are anchored inward so the first and last never get clipped.
+function XTick({ x, y, payload, fmt, ticks, last }) {
+  const i = ticks.indexOf(payload.value);
+  const anchor = i === 0 ? "start" : i === last ? "end" : "middle";
+  return (
+    <text x={x} y={y + 14} textAnchor={anchor} fontSize={11} fill={theme.mute}>{fmt(payload.value)}</text>
+  );
+}
+
 export default function PriceChart({ symbol, market, currency = "INR", fetchHistory = stocksAPI.history }) {
   const [selected, setSelected] = useState("1M");
   const [candles, setCandles] = useState([]);
@@ -118,7 +127,7 @@ export default function PriceChart({ symbol, market, currency = "INR", fetchHist
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={theme.ruleSoft} vertical={false} />
-              <XAxis dataKey="time" tickFormatter={formatX} tick={{ fontSize: 11, fill: theme.mute }}
+              <XAxis dataKey="time" tick={<XTick fmt={formatX} last={ticks.length - 1} ticks={ticks} />}
                 tickLine={false} axisLine={{ stroke: theme.rule }} ticks={ticks} interval={0} minTickGap={24} />
               <YAxis domain={["auto", "auto"]} orientation="right" width={68} tick={{ fontSize: 11, fill: theme.mute }}
                 tickLine={false} axisLine={false}
