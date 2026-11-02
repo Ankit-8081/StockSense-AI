@@ -1,9 +1,9 @@
-from langchain_groq import ChatGroq
 from langchain.schema import SystemMessage, HumanMessage
 from agents.sentiment_agent import analyze_sentiment
 from agents.technical_agent import compute_technical_score, compute_intraday_score
 from services.news_service import fetch_stock_news
 from services.stock_data import get_quote
+from services.llm import ask_json
 import json
 
 PREDICTION_PROMPT = """You are an expert stock market analyst and trader.
@@ -28,16 +28,16 @@ def _score_to_direction(score: float) -> str:
     return "NEUTRAL"
 
 def predict(symbol: str, market: str, prediction_type: str = "delivery",
-            groq_key: str = None, tavily_key: str = None) -> dict:
+            groq_key: str = None, tavily_key: str = None, google_key: str = None) -> dict:
     """
     prediction_type: 'intraday' (same day) | 'delivery' (swing, 3-10 days)
     """
     # 1. Fetch data
     quote = get_quote(symbol, market)
-    articles = fetch_stock_news(symbol, quote.get("name", symbol), api_key=tavily_key)
+    articles = fetch_stock_news(symbol, quote.get("name", symbol), api_key=tavily_key, market=market)
 
     # 2. Sentiment analysis
-    sentiment = analyze_sentiment(symbol, articles, groq_key=groq_key)
+    sentiment = analyze_sentiment(symbol, articles, groq_key=groq_key, google_key=google_key)
 
     # 3. Technical analysis
     if prediction_type == "intraday":
@@ -85,9 +85,7 @@ def predict(symbol: str, market: str, prediction_type: str = "delivery",
     ]
 
     try:
-        llm = ChatGroq(api_key=groq_key, model_name="llama-3.3-70b-versatile", temperature=0.15)
-        response = llm.invoke(messages)
-        llm_result = json.loads(response.content.strip())
+        llm_result = ask_json(messages, groq_key=groq_key, google_key=google_key, temperature=0.15)
     except Exception:
         llm_result = {
             "direction": rough_direction,

@@ -27,7 +27,7 @@ export default function StockDetail() {
     if (!symbol || !market) return;
     setQuote(null); setPrediction(null); setPredError(""); setInWatchlist(false); setWatchlistId(null);
     stocksAPI.quote(symbol, market).then((r) => setQuote(r.data)).catch(() => {});
-    newsAPI.stockNews(symbol).then((r) => setNews(r.data || [])).catch(() => setNews([]));
+    newsAPI.stockNews(symbol, "", market).then((r) => setNews(r.data || [])).catch(() => setNews([]));
     watchlistAPI.get().then((r) => {
       const found = r.data?.find((w) => w.symbol === symbol.toUpperCase() && w.market === market.toUpperCase());
       if (found) { setInWatchlist(true); setWatchlistId(found.id); }
@@ -110,7 +110,7 @@ export default function StockDetail() {
             <div className="panel-head"><h2 className="panel-title">News on {symbol?.toUpperCase()}</h2></div>
             {news.length === 0 ? (
               <Empty title="No news found">
-                Nothing recent turned up for this stock, or your Tavily key isn't set.
+                No recent headlines turned up for this stock. The news sources may be unreachable.
               </Empty>
             ) : (
               <ul className="row-list">{news.map((a, i) => <li key={i}><NewsCard article={a} /></li>)}</ul>

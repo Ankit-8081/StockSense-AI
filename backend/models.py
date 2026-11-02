@@ -40,6 +40,7 @@ class UserApiKeys(Base):
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
     groq_key = Column(Text, nullable=True)      # Fernet-encrypted
     tavily_key = Column(Text, nullable=True)    # Fernet-encrypted
+    google_key = Column(Text, nullable=True)    # Fernet-encrypted (Gemini)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class Watchlist(Base):

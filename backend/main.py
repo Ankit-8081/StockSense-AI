@@ -6,6 +6,18 @@ import models  # noqa: F401 — registers all tables (incl. user_api_keys) befor
 
 Base.metadata.create_all(bind=engine)
 
+def _ensure_columns():
+    """create_all doesn't alter existing tables; add columns introduced after first run."""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if "user_api_keys" in insp.get_table_names():
+        cols = {c["name"] for c in insp.get_columns("user_api_keys")}
+        if "google_key" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE user_api_keys ADD COLUMN google_key TEXT"))
+
+_ensure_columns()
+
 app = FastAPI(
     title="StockSense AI",
     description="AI-powered stock monitoring, news analysis, and prediction platform",

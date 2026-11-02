@@ -44,7 +44,7 @@ function KeysGate() {
   let skipped = false;
   try { skipped = localStorage.getItem(`keys_skipped_${user?.id}`) === "1"; } catch {}
 
-  const needsSetup = keys && !keys.groq.saved && !skipped;
+  const needsSetup = keys && !keys.groq.saved && !keys.google?.saved && !skipped;
   if (needsSetup && location.pathname !== "/api-keys") {
     return <Navigate to="/api-keys" replace />;
   }

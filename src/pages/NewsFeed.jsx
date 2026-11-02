@@ -37,7 +37,7 @@ export default function NewsFeed() {
           </ul>
         ) : news.length === 0 ? (
           <Empty title="No headlines right now">
-            News comes from Tavily. If this stays empty, check that your Tavily key is saved under API keys.
+            Headlines come from Google News and Tavily. If this stays empty, the news sources may be unreachable.
           </Empty>
         ) : (
           <ul className="row-list">{news.map((a, i) => <li key={i}><NewsCard article={a} /></li>)}</ul>

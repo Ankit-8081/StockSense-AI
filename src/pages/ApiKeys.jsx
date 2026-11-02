@@ -7,13 +7,18 @@ import AuthShell from "../components/AuthShell";
 
 const FIELDS = [
   {
-    id: "groq", label: "Groq API key", required: true, placeholder: "gsk_…",
-    help: "Runs the sentiment analysis and predictions.",
+    id: "groq", label: "Groq API key", required: false, placeholder: "gsk_…",
+    help: "Runs the sentiment analysis and predictions. Add this or a Google AI key.",
     url: "https://console.groq.com/keys",
   },
   {
+    id: "google", label: "Google AI (Gemini) key", required: false, placeholder: "AIza…",
+    help: "Backup AI for predictions if Groq is busy or its limit is reached. It also works on its own.",
+    url: "https://aistudio.google.com/apikey",
+  },
+  {
     id: "tavily", label: "Tavily API key", required: false, placeholder: "tvly-…",
-    help: "Fetches the news behind each prediction. Without it, predictions use technical indicators only.",
+    help: "Adds more news results. Google News headlines are included without any key.",
     url: "https://app.tavily.com",
   },
 ];
@@ -22,18 +27,19 @@ export default function ApiKeys() {
   const { user } = useAuth();
   const { keys, refresh } = useOutletContext();
   const navigate = useNavigate();
-  const [values, setValues] = useState({ groq: "", tavily: "" });
+  const [values, setValues] = useState({ groq: "", google: "", tavily: "" });
   const [show, setShow] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const isSetup = !keys?.groq?.saved;
+  const isSetup = !keys?.groq?.saved && !keys?.google?.saved;
 
   const save = async (e) => {
     e.preventDefault();
     setError("");
     const body = {};
     if (values.groq.trim()) body.groq_key = values.groq.trim();
+    if (values.google.trim()) body.google_key = values.google.trim();
     if (values.tavily.trim()) body.tavily_key = values.tavily.trim();
     if (!Object.keys(body).length) {
       setError("Enter a key to save, or skip this for now.");
@@ -77,9 +83,7 @@ export default function ApiKeys() {
           return (
             <div key={f.id} className="field">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <label className="label" htmlFor={`key-${f.id}`}>
-                  {f.label}{f.required ? "" : " (optional)"}
-                </label>
+                <label className="label" htmlFor={`key-${f.id}`}>{f.label}</label>
                 <a className="link" href={f.url} target="_blank" rel="noreferrer"
                   style={{ fontSize: 12, display: "inline-flex", gap: 4, alignItems: "center" }}>
                   Get a key <ExternalLink size={11} />
