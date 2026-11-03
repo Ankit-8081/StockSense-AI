@@ -36,3 +36,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Security audit register (public repo: do not commit)
+.security-audit/
