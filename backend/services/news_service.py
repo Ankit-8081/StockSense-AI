@@ -1,6 +1,6 @@
 import re
 import requests
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
@@ -93,6 +93,8 @@ def _merge(*lists, cap: int) -> list:
     """Combine sources, drop near-duplicate headlines, newest first."""
     seen, merged = set(), []
     for article in (a for lst in lists for a in lst):
+        if not str(article.get("url") or "").lower().startswith(("http://", "https://")):
+            continue                                  # never pass javascript:/data: links to the browser
         key = re.sub(r"[^a-z0-9]", "", (article.get("title") or "").lower())[:60]
         if not key or key in seen:
             continue

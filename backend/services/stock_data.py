@@ -14,7 +14,15 @@ def _cache_get(key):
         del _cache[key]
     return None
 
+_CACHE_MAX = 3000
+
 def _cache_set(key, data, ttl=CACHE_TTL):
+    if len(_cache) >= _CACHE_MAX:                       # bound memory: drop expired, then oldest
+        now = datetime.now()
+        for k in [k for k, (_, exp) in _cache.items() if exp <= now]:
+            _cache.pop(k, None)
+        while len(_cache) >= _CACHE_MAX:
+            _cache.pop(next(iter(_cache)), None)
     _cache[key] = (data, datetime.now() + timedelta(seconds=ttl))
 
 MARKET_SUFFIX = {"NSE": ".NS", "BSE": ".BO", "NYSE": "", "NASDAQ": ""}

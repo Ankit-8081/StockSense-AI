@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from typing import Literal
+from pydantic import BaseModel, Field
 from database import get_db
 from models import Alert
 from routers.auth import get_current_user
@@ -10,10 +11,10 @@ from services.stock_data import build_ticker, get_quote
 router = APIRouter()
 
 class AlertCreate(BaseModel):
-    symbol: str
-    market: str
-    condition: str   # "above" | "below"
-    target_price: float
+    symbol: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9.&_-]{0,19}$")
+    market: Literal["NSE", "BSE", "NYSE", "NASDAQ"]
+    condition: Literal["above", "below"]
+    target_price: float = Field(gt=0, lt=1e9, allow_inf_nan=False)
 
 def _market_from_ticker(yf_ticker: str) -> str:
     if yf_ticker.endswith(".NS"):

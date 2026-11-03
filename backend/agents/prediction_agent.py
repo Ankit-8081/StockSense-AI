@@ -95,17 +95,25 @@ def predict(symbol: str, market: str, prediction_type: str = "delivery",
             "target_range": {"low": 0.5, "high": 1.5},
         }
 
+    direction = str(llm_result.get("direction", rough_direction)).upper()
+    if direction not in ("UP", "DOWN", "NEUTRAL"):
+        direction = rough_direction
+    risks = llm_result.get("key_risks", [])
+    risks = [str(r)[:200] for r in risks[:6]] if isinstance(risks, list) else []
+    tr = llm_result.get("target_range", {})
+    tr = {k: v for k, v in tr.items() if k in ("low", "high") and isinstance(v, (int, float))} if isinstance(tr, dict) else {}
+
     return {
         "symbol": symbol.upper(),
         "market": market.upper(),
         "prediction_type": prediction_type,
         "current_price": technical.get("current_price") or quote.get("price"),
         "currency": quote.get("currency", "INR"),
-        "direction": llm_result.get("direction", rough_direction),
+        "direction": direction,
         "confidence": round(min(1.0, max(0.0, float(llm_result.get("confidence", abs(combined_score))))), 2),
-        "reasoning": llm_result.get("reasoning", ""),
-        "key_risks": llm_result.get("key_risks", []),
-        "target_range": llm_result.get("target_range", {}),
+        "reasoning": str(llm_result.get("reasoning", ""))[:1500],
+        "key_risks": risks,
+        "target_range": tr,
         "combined_score": combined_score,
         "sentiment": {
             "score": sentiment.get("sentiment_score"),

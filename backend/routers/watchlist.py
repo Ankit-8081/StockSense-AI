@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from typing import Literal
+from pydantic import BaseModel, Field
 from database import get_db
 from models import Watchlist, Market
 from routers.auth import get_current_user
@@ -10,8 +11,8 @@ from services.stock_data import build_ticker
 router = APIRouter()
 
 class WatchlistAdd(BaseModel):
-    symbol: str
-    market: str
+    symbol: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9.&_-]{0,19}$")
+    market: Literal["NSE", "BSE", "NYSE", "NASDAQ"]
 
 @router.get("/")
 def get_watchlist(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
