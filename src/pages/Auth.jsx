@@ -37,7 +37,11 @@ export function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(""); setLoading(true);
     try { await login(email, password); navigate("/"); }
-    catch { setError("Email or password is incorrect."); }
+    catch (err) {
+      setError(err.response?.status === 429
+        ? "Too many attempts. Wait a few minutes and try again."
+        : "Email or password is incorrect.");
+    }
     finally { setLoading(false); }
   };
 
@@ -71,10 +75,13 @@ export function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError("");
-    if (password.length < 6) { setError("Use a password with at least 6 characters."); return; }
+    if (password.length < 10) { setError("Use a password with at least 10 characters."); return; }
     setLoading(true);
     try { await authAPI.register({ name, email, password }); await login(email, password); navigate("/"); }
-    catch (err) { setError(err.response?.data?.detail || "Could not create your account. Check your details and try again."); }
+    catch (err) {
+      const d = err.response?.data?.detail;
+      setError(typeof d === "string" ? d : "Could not create your account. Use a valid email and a password of 10 to 72 characters.");
+    }
     finally { setLoading(false); }
   };
 
@@ -89,7 +96,7 @@ export function Register() {
         <Field id="email" label="Email" type="email" autoComplete="email" value={email}
           onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         <Field id="password" label="Password" secret autoComplete="new-password" value={password}
-          onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" />
+          onChange={(e) => setPassword(e.target.value)} placeholder="At least 10 characters" />
         {error && <div className="notice notice-error" role="alert" style={{ marginBottom: 16 }}>{error}</div>}
         <button type="submit" disabled={loading} className="btn btn-primary btn-block" style={{ padding: 11 }}>
           {loading ? "Creating account…" : "Create account"}

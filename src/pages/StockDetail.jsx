@@ -31,7 +31,7 @@ export default function StockDetail() {
   useEffect(() => {
     if (!symbol || !market) return;
     setQuote(null); setPrediction(null); setPredError(""); setInWatchlist(false); setWatchlistId(null);
-    stocksAPI.quote(symbol, market).then((r) => setQuote(r.data)).catch(() => {});
+    stocksAPI.quote(symbol, market, true).then((r) => setQuote(r.data)).catch(() => {});
     newsAPI.stockNews(symbol, "", market).then((r) => setNews(r.data || [])).catch(() => setNews([]));
     watchlistAPI.get().then((r) => {
       const found = r.data?.find((w) => w.symbol === symbol.toUpperCase() && w.market === market.toUpperCase());
@@ -117,7 +117,7 @@ export default function StockDetail() {
             </section>
           )}
 
-          {tab === "Events" && <EventsTab symbol={symbol} market={market} currency={currency} />}
+          {tab === "Events" && <EventsTab symbol={symbol} market={market} currency={currency} onOpenFinancials={() => setTab("Overview")} />}
         </div>
 
         <div className="stack">

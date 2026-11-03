@@ -135,12 +135,12 @@ def get_events(symbol: str, market: str) -> dict:
     if hit:
         return hit
     ticker = build_ticker(symbol, market)
-    dividends, splits = [], []
+    dividends, splits, earnings = [], [], []
     ok = False
     for host in ("query1", "query2"):
         try:
             r = requests.get(
-                f"https://{host}.finance.yahoo.com/v8/finance/chart/{ticker}?range=10y&interval=3mo&events=div%2Csplits",
+                f"https://{host}.finance.yahoo.com/v8/finance/chart/{ticker}?range=10y&interval=3mo&events=div%2Csplits%2Cearn",
                 headers=YF_HEADERS, timeout=15)
             if r.status_code != 200:
                 continue
@@ -152,6 +152,9 @@ def get_events(symbol: str, market: str) -> dict:
             for s in (ev.get("splits") or {}).values():
                 splits.append({"date": datetime.fromtimestamp(s["date"]).strftime("%Y-%m-%d"),
                                "ratio": s.get("splitRatio") or f"{s.get('numerator')}:{s.get('denominator')}"})
+            for e in (ev.get("earnings") or {}).values():
+                if e.get("date"):
+                    earnings.append(datetime.fromtimestamp(e["date"]).strftime("%Y-%m-%d"))
             break
         except Exception:
             continue
@@ -166,7 +169,29 @@ def get_events(symbol: str, market: str) -> dict:
             moves.append({"date": b["time"][:10], "change_pct": round(pct, 2), "close": b["close"]})
     moves.sort(key=lambda x: x["date"], reverse=True)
 
-    result = {"dividends": dividends[:12], "splits": splits[:6], "big_moves": moves[:10], "source_ok": ok}
-    if ok or moves:
+    # One unified, newest-first timeline for the Events tab.
+    timeline = []
+    if earnings:
+        for d in earnings:
+            timeline.append({"date": d, "type": "result", "title": "Quarterly Result", "sub": "Release date"})
+    else:
+        # No release dates from the source: show the quarters that were reported (period-end dates).
+        try:
+            from services.company import get_company
+            for r in get_company(symbol, market)["financials"]["quarterly"]:
+                timeline.append({"date": r["date"], "type": "result", "title": "Quarterly Result", "sub": "Quarter ended"})
+        except Exception:
+            pass
+    for d in dividends:
+        timeline.append({"date": d["date"], "type": "dividend", "title": "Dividend", "sub": "Ex date", "amount": d["amount"]})
+    for sp in splits:
+        timeline.append({"date": sp["date"], "type": "split", "title": "Stock Split", "sub": "Ex date", "ratio": sp["ratio"]})
+    for m in moves:
+        timeline.append({"date": m["date"], "type": "move", "title": "Big price move", "sub": "Daily move of 4% or more",
+                         "change_pct": m["change_pct"], "close": m["close"]})
+    timeline.sort(key=lambda x: x["date"], reverse=True)
+
+    result = {"events": timeline, "dividends": dividends[:12], "splits": splits[:6], "big_moves": moves[:10], "source_ok": ok}
+    if timeline:
         _cache_set(key, result, 3600)
     return result

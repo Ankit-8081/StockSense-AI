@@ -1,8 +1,15 @@
 import { ExternalLink } from "lucide-react";
 import { timeAgo } from "./ui";
 
+// Only http(s) links are allowed; anything else (javascript:, data:) is dropped.
+const safeUrl = (u) => {
+  try { const p = new URL(u); return p.protocol === "https:" || p.protocol === "http:" ? p.href : undefined; }
+  catch { return undefined; }
+};
+
 export default function NewsCard({ article }) {
-  const { title, url, content, published_date, source } = article;
+  const { title, content, published_date, source } = article;
+  const url = safeUrl(article.url);
   return (
     <a className="news-row" href={url} target="_blank" rel="noopener noreferrer">
       <div className="news-meta">

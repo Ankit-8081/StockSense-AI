@@ -36,3 +36,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Security audit register (public repo: do not commit)
+.security-audit/
+
+# Local databases (contain user data)
+*.db
+*.sqlite
+*.sqlite3
+backend/*.db

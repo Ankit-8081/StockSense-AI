@@ -13,8 +13,20 @@ import Watchlist from "./pages/Watchlist";
 import { Login, Register } from "./pages/Auth";
 
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, serverDown, retry } = useAuth();
   const location = useLocation();
+
+  if (serverDown) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, textAlign: "center" }}>
+        <div>
+          <h1 style={{ fontSize: 20, margin: "0 0 8px" }}>Can't reach the server</h1>
+          <p className="muted" style={{ margin: "0 0 16px" }}>Check that the backend is running on port 8000, then try again. You are still signed in.</p>
+          <button className="btn btn-primary" onClick={retry}>Try again</button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
